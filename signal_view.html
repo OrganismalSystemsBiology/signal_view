@@ -1,0 +1,271 @@
+<html>
+
+<head>
+    <style>
+        header {
+            position: fixed; 
+            top: 0; 
+            width: 100%; 
+            z-index:1; 
+            background-color: rgba(0, 0, 0, 0.6);
+        }
+        .header-component {
+            z-index:1;
+            background-color: rgba(255, 255, 255, 0.6);
+        }
+        .grid {
+            display: grid;
+            grid-gap: 2px;
+            background-size: 100% 100%;
+            background-repeat: no-repeat;
+            min-width: 1600px;
+            min-height: 1200px;
+            width: 100%;
+            height: 100%;
+     
+            grid-template-columns: repeat(9, 1fr); 
+            grid-template-rows: repeat(5, 1fr);
+        }
+        .stage-mask{
+            font-size: 36pt;
+            font-family: 'arial unicode ms';
+            font-weight: bold;
+            position: absolute; 
+            top: 35%; 
+            left: 37%; 
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="grids" style="padding: 25px 0 0 0">
+        <header>
+            <button style="margin: 0px 0px 0px 200px" @click="loadStages"> open </button>
+            <button @click="saveStages" v-bind:disabled="!stageFileName.set">  save  </button>
+            <input class="header-component" v-bind:value="stageFileName.name" v-on:input="setStageFileName"></input>
+            <input class="header-component" v-bind:value="jumpToEpoch" v-on:input="setJumpToEpoch"></input>
+            <a href="#" v-scroll-to="'#epoch'+jumpToEpoch">Jump</a>
+        </header>
+        <one-page v-for="i in 10" :key="i" v-bind:filename="pages[i-1].filename" v-bind:start-stage-idx="pages[i-1].startStageIdx"></one-page>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vue-scrollto"></script>
+
+    <script>
+        const COLOR_WAKE='rgba(239, 94, 38, 0.3)'
+        const COLOR_NREM='rgba(35, 180, 239, 0.3)'
+        const COLOR_REM ='rgba(107, 142, 35, 0.3)'
+        const COLOR_UNKNOWN='rgba(105, 105, 105, 0.3)'
+        const COLOR_NONE='transparent'
+
+        var device_id = "10"
+        var pageNum = 720
+        var sub_win
+
+        require('date-utils');
+        var {remote} = require('electron');
+        var {dialog} = remote;
+        var fs = require('fs');
+        var path = require('path');
+        var stringifySync = require("csv-stringify/lib/sync");
+
+        // prepare a list of files
+        var plotPages = [];
+        for (var i = 0; i < pageNum; i++) {
+            idx = (i * 45 + 1).toString().padStart(6, '0')
+            plotPages.push({
+                filename: "img/" + "10." + idx + ".jpg",
+                startStageIdx: i*45
+            });
+        }
+
+        // prepare a list of initial stage
+        var epochCells = [];
+        for (var i = 0; i < pageNum * 45; i++){
+            epochCells.push({idx:i, focus:false, stageNum:0}) // 0...not touched, 3...NREM, 4...Wake, 2...REM, 1...Unknown
+        }
+
+        Vue.component('one-page', {
+            props: ['filename', 'startStageIdx'],
+            template: `
+            <div v-bind:id="'epoch'+startStageIdx" class="grid" v-bind:style="{'background-image': 'url(' +  filename+ ')'}">
+                <button v-for="stage in $parent.epochCells.slice(startStageIdx, startStageIdx + 45)" 
+                    v-bind:style="{'background-color':$parent.bgColor(stage.stageNum) }" 
+                    style="position: relative; border-style: none"
+                    @focus="$parent.toggle_stage(stage.idx)"
+                    @blur="$parent.unfocus(stage.idx)"
+                    @keydown.49="$parent.set_stage(stage.idx, 1)"
+                    @keydown.50="$parent.set_stage(stage.idx, 2)"
+                    @keydown.51="$parent.set_stage(stage.idx, 3)"
+                    @keydown.52="$parent.set_stage(stage.idx, 4)"
+                    @keydown.48="$parent.set_stage(stage.idx, 0)"
+                    @keydown.esc="$parent.set_stage(stage.idx, 0)"
+                    @mouseover="$parent.show_spectrum(stage.idx)"
+                    type="button">
+                    <stage-mask :stage-num="stage.stageNum"">
+                    </stage-mask>
+                </button>
+             </div>`,
+            
+        })
+
+        Vue.component('stage-mask',{
+            props: ['stageNum'],
+            template: `
+            <div class="stage-mask" v-if="stageNum===1">
+                U
+            </div>
+            <div class="stage-mask" v-else-if="stageNum===2">
+                R
+            </div>
+            <div class="stage-mask" v-else-if="stageNum===3">
+                N
+            </div>
+            <div class="stage-mask" v-else-if="stageNum===4">
+                W
+            </div>
+            `
+        })
+
+        const vm = new Vue({
+            el:"#grids",
+            data: {
+                pages: plotPages,
+                epochCells: epochCells,
+                stageFileName: {set:false, name:"no stage file opend"},
+                stageFilePath: ".",
+                jumpToEpoch: 0
+            },
+            methods: {
+                toggle_stage: function(idx) {
+                    i = Number(idx)
+                    if(this.epochCells[i].focus){
+                        this.epochCells[i].stageNum = (this.epochCells[i].stageNum + 1) % 4
+                        console.log('toggle:'+this.epochCells[i].stageNum + "@" + idx)
+                    }else{
+                        this.epochCells[i].focus = true
+                        console.log("set focus @" + idx)
+                    }
+                },
+                unfocus: function(idx){
+                    this.epochCells[i].focus = false
+                    console.log("unfocus @" + idx)
+                },
+                set_stage: function(idx, stageNum){
+                    
+                    this.epochCells[i].stageNum = Number(stageNum)
+                    console.log('set from: '+this.epochCells[i].stageNum + " to:" + stageNum +"@" + idx)
+                },
+                bgColor: function(stageNum) {
+                    if (stageNum == 1) {
+                        color = COLOR_UNKNOWN;
+                    } else if (stageNum == 2){
+                        color = COLOR_REM;
+                    } else if (stageNum == 3){
+                        color = COLOR_NREM;
+                    } else if (stageNum == 4){
+                        color = COLOR_WAKE;
+                    } else {
+                        color = COLOR_NONE;
+                    }
+                    return color
+                },
+                show_spectrum: function(idx){
+                    spec_plot_filename = device_id + "." + (idx + 1).toString().padStart(6, '0') + '.spec.jpg'
+                    img_tag_src = spec_plot_filename
+                    img_tag_alt = spec_plot_filename
+                    this.sub_win.postMessage(img_tag_src)
+
+                    console.log("spectrum for " + idx)
+                },
+                loadStages() {
+                   remote.dialog.showOpenDialog(remote.getCurrentWindow(),
+                    {
+                        properties: ['openFile']
+                    }, (filepath) => { console.log('selected ' + filepath)}).then(result => {
+                        this.stageFilePath = result.filePaths[0];
+                        this.stageFileName.name = path.basename(this.stageFilePath)
+                        this.stageFileName.set = false // to prevent unintentional overwrite
+                        console.log(this.stageFilePath);
+
+                        var rec = readCsvSync(this.stageFilePath, {columns:false, from_line: 8});
+                        
+                        for (i = 0; i < rec.length; i++){
+                            stageLabel = rec[i][0];
+                            if (stageLabel === '-'){
+                                sn = 0;
+                            }else if (stageLabel === 'Unknown'){
+                                sn = 1;
+                            }else if (stageLabel === 'REM'){
+                                sn = 2;
+                            }else if (stageLabel === 'NREM'){
+                                sn = 3;
+                            }else if (stageLabel === 'Wake'){
+                                sn = 4;
+                            }
+                            this.epochCells[i].stageNum = sn
+                        }
+                        console.log(epochCells)
+                    });
+                },
+                setStageFileName(e) {
+                    filename = e.target.value
+                    if (typeof filename !== ""){
+                        this.stageFileName.name = filename
+                        this.stageFileName.set = true
+                        this.stageFilePath = path.join(path.dirname(this.stageFilePath), this.stageFileName.name)
+                    }
+                },
+                saveStages() {
+                    stageTable = [];
+                    for (i = 0; i < this.epochCells.length; i++) {
+                        stageNum = this.epochCells[i].stageNum;
+                        if (stageNum == 1) {
+                            stageLabel = "Unknown";
+                        } else if (stageNum == 2) {
+                            stageLabel = "REM";
+                        } else if (stageNum == 3) {
+                            stageLabel = "NREM";
+                        } else if (stageNum == 4) {
+                            stageLabel = "Wake";
+                        } else {
+                            stageLabel = "-";
+                        }
+                        stageTable.push({ stage: stageLabel })
+                    }
+                    csvString = stringifySync(stageTable, {
+                        header: false,
+                        quoted_string: false
+                    });
+
+                    now = new Date()
+                    commentStr = 
+                    "#\n" +
+                    "#\n" +
+                    "#\n" +
+                    "#\n" +
+                    "#\n" +
+                    "#\n" +
+                    "# Staged by manual inspection saved at " + now.toFormat("YYYY/MM/DD HH24:MI:SS") + "\n"
+                    "Stage\n"
+                    fs.writeFileSync(this.stageFilePath, commentStr)
+                    fs.appendFileSync(this.stageFilePath, csvString)
+                }
+            },
+            mounted(){
+                this.sub_win=window.open("spectrum.html", "spectrum", "width=300, height=500");
+                sub_win = this.sub_win
+            }
+        })
+
+        function readCsvSync(filename, options) {
+            const fs = require('fs');
+            const parse = require('csv-parse/lib/sync');
+            const content = fs.readFileSync(filename).toString();
+            return parse(content, options);
+        }
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,22 @@
+<html>
+    <body>
+        <div id="app">
+            <img id="spectrum_plot" :src="filename" :alt="filename">
+        </div>
+        <script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+        <script>
+            new Vue({
+                el: '#app',
+                data: {
+                    filename: "dummy.jpg"
+                },
+                mounted() {
+                    window.addEventListener('message', (e) => {
+                        this.filename=e.data
+                    })
+                }
+            })
+
+        </script>
+    </body>
+</html>
