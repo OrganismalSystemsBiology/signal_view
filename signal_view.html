@@ -44,10 +44,10 @@
             <button style="margin: 0px 0px 0px 200px" @click="loadStages"> open </button>
             <button @click="saveStages" v-bind:disabled="!stageFileName.set">  save  </button>
             <input class="header-component" v-bind:value="stageFileName.name" v-on:input="setStageFileName"></input>
-            <input class="header-component" v-bind:value="jumpToEpoch" v-on:input="setJumpToEpoch"></input>
-            <a href="#" v-scroll-to="'#epoch'+jumpToEpoch">Jump</a>
+            <input class="header-component" v-bind:value="jumpToEpoch" v-on:change="setJumpToEpoch" type="number"></input>
+            <a href="#" v-scroll-to="'#epoch'+ (jumpToEpoch - 1).toString()">Jump</a>
         </header>
-        <one-page v-for="i in 10" :key="i" v-bind:filename="pages[i-1].filename" v-bind:start-stage-idx="pages[i-1].startStageIdx"></one-page>
+        <one-page v-for="i in pages.length" :key="i" v-bind:filename="pages[i-1].filename" v-bind:start-stage-idx="pages[i-1].startStageIdx"></one-page>
     </div>
     <script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/vue-scrollto"></script>
@@ -59,10 +59,6 @@
         const COLOR_UNKNOWN='rgba(105, 105, 105, 0.3)'
         const COLOR_NONE='transparent'
 
-        var device_id = "10"
-        var pageNum = 720
-        var sub_win
-
         require('date-utils');
         var {remote} = require('electron');
         var {dialog} = remote;
@@ -70,19 +66,29 @@
         var path = require('path');
         var stringifySync = require("csv-stringify/lib/sync");
 
+        var args = remote.getGlobal('sharedObject').args
+        var faster_dir = args[2]
+        var device_id = args[3]
+        var pageNum = 10
+        var epochPerPage = 45
+        var sub_win
+
+        filenames = fs.readdirSync(faster_dir + "result/figure/voltage/" + device_id)
+        pageNum = filenames.length
+
         // prepare a list of files
         var plotPages = [];
         for (var i = 0; i < pageNum; i++) {
-            idx = (i * 45 + 1).toString().padStart(6, '0')
+            idx = (i * epochPerPage + 1).toString().padStart(6, '0')
             plotPages.push({
-                filename: "img/" + "10." + idx + ".jpg",
-                startStageIdx: i*45
+                filename: faster_dir+"result/figure/voltage/" + device_id + "/" + device_id + "." + idx + ".jpg",
+                startStageIdx: i*epochPerPage
             });
         }
 
         // prepare a list of initial stage
         var epochCells = [];
-        for (var i = 0; i < pageNum * 45; i++){
+        for (var i = 0; i < pageNum * epochPerPage; i++){
             epochCells.push({idx:i, focus:false, stageNum:0}) // 0...not touched, 3...NREM, 4...Wake, 2...REM, 1...Unknown
         }
 
@@ -135,7 +141,7 @@
                 epochCells: epochCells,
                 stageFileName: {set:false, name:"no stage file opend"},
                 stageFilePath: ".",
-                jumpToEpoch: 0
+                jumpToEpoch: 1
             },
             methods: {
                 toggle_stage: function(idx) {
@@ -172,7 +178,8 @@
                     return color
                 },
                 show_spectrum: function(idx){
-                    spec_plot_filename = device_id + "." + (idx + 1).toString().padStart(6, '0') + '.spec.jpg'
+                    page_str = (Math.floor(idx/1000)*1000 + 1).toString().padStart(6, '0')
+                    spec_plot_filename = faster_dir+"result/figure/spectrum/" + device_id + "/" + page_str + "/" + device_id + "." + (idx + 1).toString().padStart(6, '0') + '.jpg'
                     img_tag_src = spec_plot_filename
                     img_tag_alt = spec_plot_filename
                     this.sub_win.postMessage(img_tag_src)
@@ -216,6 +223,9 @@
                         this.stageFileName.set = true
                         this.stageFilePath = path.join(path.dirname(this.stageFilePath), this.stageFileName.name)
                     }
+                },
+                setJumpToEpoch(e) {
+                    this.jumpToEpoch = Math.floor((e.target.value-1) / epochPerPage) * epochPerPage + 1
                 },
                 saveStages() {
                     stageTable = [];

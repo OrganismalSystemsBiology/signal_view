@@ -2,6 +2,9 @@ const { app, Menu, BrowserWindow } = require('electron')
 
 let win
 
+// コマンドライン引数
+global.sharedObject = {args: process.argv}
+
 // Menu bar を非表示
 Menu.setApplicationMenu(null);
 
@@ -11,7 +14,7 @@ function createWindow() {
     win = new BrowserWindow({ webPreferences: { nodeIntegration: true }, width: 800, height: 400 })
 
     //ウインドウに表示する内容
-    win.loadFile('app_test_20200409.html')
+    win.loadFile('signal_view.html')
 
     //デバッグ画面表示
     win.webContents.openDevTools()

@@ -1,0 +1,16 @@
+{
+  "name": "signal_view",
+  "version": "1.0.0",
+  "description": "viewing and staging the EEG/EMG signal of Faster2",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron ."
+  },
+  "devDependencies": {
+    "electron": "^4.0.2"
+  },
+  "dependencies": {
+    "csv-stringify": "^5.4.3",
+    "date-utils": "^1.2.21"
+  }
+}
