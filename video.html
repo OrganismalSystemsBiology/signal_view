@@ -1,0 +1,90 @@
+<html>
+    <body>
+        <div id="app">
+            <label for="input-video">{{ isLoading ? '読み込み中...' : '動画を選択'}}</label>
+            <input id="input-video" type="file" accept="video/mp4,video/x-m4v" @change="handleFileSelect">
+            <video controls v-if="src">
+              <source :src="src" :alt="focusTime" type='video/mp4; codecs="avc1.42E01E, mp4a.40.2"'>
+            </video>
+            <div class="thumbnail-list">
+              <transition-group name="fade">
+                <img 
+                  class="thumbnail"
+                  v-for="(thumbnail, index) in thumbnails" 
+                  :key="'thumbnail' + index" 
+                  :src="thumbnail"
+                  :class="{ active: index === selected }"
+                  @click="selected = index"
+                >
+              </transition-group>
+            </div>
+        </div>
+        <script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+        <script>
+            new Vue({
+                el: '#app',
+                data: {
+                    src: null,
+                    thumbnails: [],
+                    selected: 0,
+                    isLoading: false,
+                    focusTime: 0,
+                },
+                methods: {
+                    mounted() {
+                    window.addEventListener('message', (e) => {
+                        this.focusTime=e.data
+                    })},
+                    handleFileSelect(event) {
+                        // reset data
+                        this.src = null
+                        this.thumbnails = []
+                        this.selected = 0
+
+                        // varidate file
+                        const file = event.target.files[0]
+                        if (!file || !file.type.match('video/*')) return
+
+                        // read file
+                        const reader = new FileReader()
+                        reader.onload = (evt) => {
+                            this.src = evt.target.result
+                            this.createThumbnails(this.src)
+                            this.isLoading = false
+                        }
+                        reader.readAsDataURL(file)
+                        this.isLoading = true
+                    },
+                    createThumbnails(src) {
+                        const video = document.createElement('video')
+                        const canvas = document.createElement('canvas')
+                        const context = canvas.getContext('2d')
+
+                        // set canvas
+                        video.onloadeddata = () => {
+                            canvas.width = video.videoWidth
+                            canvas.height = video.videoHeight
+                            video.currentTime = 0
+                        }
+
+                        // capture thumbnail
+                        video.onseeked = () => {
+                            if (video.currentTime < video.duration) {
+                                context.drawImage(video, 0, 0, video.videoWidth, video.videoHeight)
+                                this.thumbnails.push(canvas.toDataURL('image/jpeg'))
+                                video.currentTime += Math.ceil(video.duration / 4)
+                            } else {
+                                context.drawImage(video, 0, 0, video.videoWidth, video.videoHeight)
+                                this.thumbnails.push(canvas.toDataURL('image/jpeg'))
+                            }
+                        }
+
+                        // set video source
+                        video.src = src
+                        video.load()
+                    }
+                }
+            })
+        </script>
+    </body>
+</html>

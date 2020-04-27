@@ -71,7 +71,8 @@
         var device_id = args[3]
         var pageNum = 10
         var epochPerPage = 45
-        var sub_win
+        var spec_win
+        var video_win
 
         filenames = fs.readdirSync(faster_dir + "result/figure/voltage/" + device_id)
         pageNum = filenames.length
@@ -141,7 +142,7 @@
                 epochCells: epochCells,
                 stageFileName: {set:false, name:"no stage file opend"},
                 stageFilePath: ".",
-                jumpToEpoch: 1
+                jumpToEpoch: 1,
             },
             methods: {
                 toggle_stage: function(idx) {
@@ -182,8 +183,8 @@
                     spec_plot_filename = faster_dir+"result/figure/spectrum/" + device_id + "/" + page_str + "/" + device_id + "." + (idx + 1).toString().padStart(6, '0') + '.jpg'
                     img_tag_src = spec_plot_filename
                     img_tag_alt = spec_plot_filename
-                    this.sub_win.postMessage(img_tag_src)
-
+                    this.spec_win.postMessage(img_tag_src)
+                    this.video_win.postMessage(idx)
                     console.log("spectrum for " + idx)
                 },
                 loadStages() {
@@ -264,8 +265,10 @@
                 }
             },
             mounted(){
-                this.sub_win=window.open("spectrum.html", "spectrum", "width=300, height=500");
-                sub_win = this.sub_win
+                this.spec_win=window.open("spectrum.html", "spectrum", "width=300, height=500");
+                spec_win = this.spec_win
+                this.video_win=window.open("video.html", "video", "width=500, height=500");
+                video_win = this.video_win
             }
         })
 
