@@ -108,7 +108,7 @@
                     @keydown.52="$parent.set_stage(stage.idx, 4)"
                     @keydown.48="$parent.set_stage(stage.idx, 0)"
                     @keydown.esc="$parent.set_stage(stage.idx, 0)"
-                    @mouseover="$parent.show_spectrum(stage.idx)"
+                    @mouseover="$parent.show_spectrum(stage.idx); $parent.seek_video(stage.idx)"
                     type="button">
                     <stage-mask :stage-num="stage.stageNum"">
                     </stage-mask>
@@ -184,8 +184,11 @@
                     img_tag_src = spec_plot_filename
                     img_tag_alt = spec_plot_filename
                     this.spec_win.postMessage(img_tag_src)
-                    this.video_win.postMessage(idx)
                     console.log("spectrum for " + idx)
+                },
+                seek_video: function(idx){
+                    this.video_win.postMessage(idx)
+                    console.log("video for " + idx)
                 },
                 loadStages() {
                    remote.dialog.showOpenDialog(remote.getCurrentWindow(),

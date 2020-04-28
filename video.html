@@ -1,23 +1,12 @@
 <html>
     <body>
         <div id="app">
-            <label for="input-video">{{ isLoading ? '読み込み中...' : '動画を選択'}}</label>
-            <input id="input-video" type="file" accept="video/mp4,video/x-m4v" @change="handleFileSelect">
-            <video controls v-if="src">
-              <source :src="src" :alt="focusTime" type='video/mp4; codecs="avc1.42E01E, mp4a.40.2"'>
+            <label for="input-video">{{ isLoading ? '読み込み中...' : ''}}</label>
+            <input id="input-video" type="file" accept="video/*" @change="handleFileSelect">
+            <video id="video" controls v-if="src" muted>
+                <source :src="src" :alt="focusTime" type="video/webm">
+                <source :src="src" :alt="focusTime" type="video/avi">
             </video>
-            <div class="thumbnail-list">
-              <transition-group name="fade">
-                <img 
-                  class="thumbnail"
-                  v-for="(thumbnail, index) in thumbnails" 
-                  :key="'thumbnail' + index" 
-                  :src="thumbnail"
-                  :class="{ active: index === selected }"
-                  @click="selected = index"
-                >
-              </transition-group>
-            </div>
         </div>
         <script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
         <script>
@@ -28,13 +17,15 @@
                     thumbnails: [],
                     selected: 0,
                     isLoading: false,
-                    focusTime: 0,
+                    focusTime: 10,
+                },
+                mounted() {
+                    window.addEventListener('message', (e) => {
+                        this.focusTime = e.data * 8
+                        video.currentTime = this.focusTime
+                    })
                 },
                 methods: {
-                    mounted() {
-                    window.addEventListener('message', (e) => {
-                        this.focusTime=e.data
-                    })},
                     handleFileSelect(event) {
                         // reset data
                         this.src = null
