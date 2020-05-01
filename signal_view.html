@@ -62,6 +62,7 @@
         require('date-utils');
         var {remote} = require('electron');
         var {dialog} = remote;
+        var BrowserWindow = remote.BrowserWindow
         var fs = require('fs');
         var path = require('path');
         var stringifySync = require("csv-stringify/lib/sync");
@@ -183,12 +184,14 @@
                     spec_plot_filename = faster_dir+"result/figure/spectrum/" + device_id + "/" + page_str + "/" + device_id + "." + (idx + 1).toString().padStart(6, '0') + '.jpg'
                     img_tag_src = spec_plot_filename
                     img_tag_alt = spec_plot_filename
-                    this.spec_win.postMessage(img_tag_src)
+                    spec_win.postMessage(img_tag_src)
                     console.log("spectrum for " + idx)
                 },
                 seek_video: function(idx){
-                    this.video_win.postMessage(idx)
+                    video_win.postMessage({'action':'setIndex', 'message':idx})
+                    video_win.postMessage({'action':'setAnalysisStartDT', 'message':faster_dir})
                     console.log("video for " + idx)
+                    console.log("faster dir " + faster_dir)
                 },
                 loadStages() {
                    remote.dialog.showOpenDialog(remote.getCurrentWindow(),
@@ -268,10 +271,15 @@
                 }
             },
             mounted(){
-                this.spec_win=window.open("spectrum.html", "spectrum", "width=300, height=500");
-                spec_win = this.spec_win
-                this.video_win=window.open("video.html", "video", "width=500, height=500");
-                video_win = this.video_win
+                spec_win = window.open("spectrum.html", "spectrum", "width=300, height=500");
+                // video_win = window.open("video.html", "video", "width=500, height=500");
+
+                //ウインドウの作成
+                video_win = new BrowserWindow({ webPreferences: { nodeIntegration: true }, width: 800, height: 400 })
+                //ウインドウに表示する内容
+                video_win.loadFile('video.html')
+                //デバッグ画面表示
+                video_win.webContents.openDevTools()
             }
         })
 
