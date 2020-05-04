@@ -47,7 +47,7 @@
             <input class="header-component" v-bind:value="jumpToEpoch" v-on:change="setJumpToEpoch" type="number"></input>
             <a href="#" v-scroll-to="'#epoch'+ (jumpToEpoch - 1).toString()">Jump</a>
         </header>
-        <one-page v-for="i in pages.length" :key="i" v-bind:filename="pages[i-1].filename" v-bind:start-stage-idx="pages[i-1].startStageIdx"></one-page>
+        <one-page v-for="i in 10" :key="i" v-bind:filename="pages[i-1].filename" v-bind:start-stage-idx="pages[i-1].startStageIdx"></one-page>
     </div>
     <script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/vue-scrollto"></script>
@@ -62,11 +62,10 @@
         require('date-utils');
         var {remote} = require('electron');
         var {dialog} = remote;
-        var BrowserWindow = remote.BrowserWindow
         var fs = require('fs');
         var path = require('path');
         var stringifySync = require("csv-stringify/lib/sync");
-
+        var parse = require('csv-parse/lib/sync');
         var args = remote.getGlobal('sharedObject').args
         var faster_dir = args[2]
         var device_id = args[3]
@@ -101,7 +100,7 @@
                 <button v-for="stage in $parent.epochCells.slice(startStageIdx, startStageIdx + 45)" 
                     v-bind:style="{'background-color':$parent.bgColor(stage.stageNum) }" 
                     style="position: relative; border-style: none"
-                    @focus="$parent.toggle_stage(stage.idx)"
+                    @focus="$parent.toggle_stage(stage.idx); $parent.seek_video(stage.idx)"
                     @blur="$parent.unfocus(stage.idx)"
                     @keydown.49="$parent.set_stage(stage.idx, 1)"
                     @keydown.50="$parent.set_stage(stage.idx, 2)"
@@ -109,7 +108,7 @@
                     @keydown.52="$parent.set_stage(stage.idx, 4)"
                     @keydown.48="$parent.set_stage(stage.idx, 0)"
                     @keydown.esc="$parent.set_stage(stage.idx, 0)"
-                    @mouseover="$parent.show_spectrum(stage.idx); $parent.seek_video(stage.idx)"
+                    @mouseover="$parent.show_spectrum(stage.idx)"
                     type="button">
                     <stage-mask :stage-num="stage.stageNum"">
                     </stage-mask>
@@ -188,10 +187,8 @@
                     console.log("spectrum for " + idx)
                 },
                 seek_video: function(idx){
-                    video_win.postMessage({'action':'setIndex', 'message':idx})
-                    video_win.postMessage({'action':'setAnalysisStartDT', 'message':faster_dir})
+                    video_win.postMessage({'action':'seek', 'message':idx})
                     console.log("video for " + idx)
-                    console.log("faster dir " + faster_dir)
                 },
                 loadStages() {
                    remote.dialog.showOpenDialog(remote.getCurrentWindow(),
@@ -271,21 +268,13 @@
                 }
             },
             mounted(){
-                spec_win = window.open("spectrum.html", "spectrum", "width=300, height=500");
-                // video_win = window.open("video.html", "video", "width=500, height=500");
-
-                //ウインドウの作成
-                video_win = new BrowserWindow({ webPreferences: { nodeIntegration: true }, width: 800, height: 400 })
-                //ウインドウに表示する内容
-                video_win.loadFile('video.html')
-                //デバッグ画面表示
-                video_win.webContents.openDevTools()
+                spec_win = window.open("spectrum.html", "spectrum", "width=1200, height=290");
+                video_win = window.open("video.html", "video", "width=380, height=300");
+                // video_win.postMessage({'action':'initialize', 'message':faster_dir})
             }
         })
 
         function readCsvSync(filename, options) {
-            const fs = require('fs');
-            const parse = require('csv-parse/lib/sync');
             const content = fs.readFileSync(filename).toString();
             return parse(content, options);
         }
