@@ -42,10 +42,12 @@
     <div id="grids" style="padding: 25px 0 0 0">
         <header>
             <button style="margin: 0px 0px 0px 200px" @click="loadStages"> open </button>
-            <button @click="saveStages" v-bind:disabled="!stageFileName.set">  save  </button>
-            <input class="header-component" v-bind:value="stageFileName.name" v-on:input="setStageFileName"></input>
+            <button @click="saveStages" v-bind:disabled="!stageFile.set">  save  </button>
+            <input class="header-component" v-bind:value="stageFile.name" v-on:input="setStageFileName"></input>
             <input class="header-component" v-bind:value="jumpToEpoch" v-on:change="setJumpToEpoch" type="number"></input>
             <a href="#" v-scroll-to="'#epoch'+ (jumpToEpoch - 1).toString()">Jump</a>
+            <button @click="openSpecWindow">  spectrum  </button>
+            <button @click="openVideoWindow">  video  </button>
         </header>
         <one-page v-for="i in 10" :key="i" v-bind:filename="pages[i-1].filename" v-bind:start-stage-idx="pages[i-1].startStageIdx"></one-page>
     </div>
@@ -59,7 +61,7 @@
         const COLOR_UNKNOWN='rgba(105, 105, 105, 0.3)'
         const COLOR_NONE='transparent'
 
-        require('date-utils');
+        var moment = require('moment')
         var {remote} = require('electron');
         var {dialog} = remote;
         var fs = require('fs');
@@ -67,25 +69,31 @@
         var stringifySync = require("csv-stringify/lib/sync");
         var parse = require('csv-parse/lib/sync');
         var args = remote.getGlobal('sharedObject').args
-        var faster_dir = args[2]
+        var faster_dir = path.resolve(path.normalize(args[2]))
         var device_id = args[3]
+        var stage_dir = path.join(faster_dir, "result")
         var pageNum = 10
         var epochPerPage = 45
         var spec_win
         var video_win
 
-        filenames = fs.readdirSync(faster_dir + "result/figure/voltage/" + device_id)
+        console.log('faster_dir: ' + faster_dir)
+        console.log('stage_dir:' + stage_dir)
+        filenames = fs.readdirSync(path.join(faster_dir, "result", "figure", "voltage", device_id))
         pageNum = filenames.length
 
         // prepare a list of files
         var plotPages = [];
         for (var i = 0; i < pageNum; i++) {
             idx = (i * epochPerPage + 1).toString().padStart(6, '0')
+            filename = path.normalize(path.join(faster_dir, "result", "figure","voltage", device_id, device_id + "." + idx + ".jpg"))
+            filename = filename.replace(/\\/g, '/')
             plotPages.push({
-                filename: faster_dir+"result/figure/voltage/" + device_id + "/" + device_id + "." + idx + ".jpg",
+                filename: filename,
                 startStageIdx: i*epochPerPage
             });
         }
+        console.log(plotPages)
 
         // prepare a list of initial stage
         var epochCells = [];
@@ -140,8 +148,7 @@
             data: {
                 pages: plotPages,
                 epochCells: epochCells,
-                stageFileName: {set:false, name:"no stage file opend"},
-                stageFilePath: ".",
+                stageFile: {set:false, name:"no stage file opend", dirPath:stage_dir},
                 jumpToEpoch: 1,
             },
             methods: {
@@ -180,7 +187,7 @@
                 },
                 show_spectrum: function(idx){
                     page_str = (Math.floor(idx/1000)*1000 + 1).toString().padStart(6, '0')
-                    spec_plot_filename = faster_dir+"result/figure/spectrum/" + device_id + "/" + page_str + "/" + device_id + "." + (idx + 1).toString().padStart(6, '0') + '.jpg'
+                    spec_plot_filename = path.join(faster_dir, "result", "figure", "spectrum", device_id, page_str, device_id + "." + (idx + 1).toString().padStart(6, '0') + '.jpg')
                     img_tag_src = spec_plot_filename
                     img_tag_alt = spec_plot_filename
                     spec_win.postMessage(img_tag_src)
@@ -193,16 +200,17 @@
                 loadStages() {
                    remote.dialog.showOpenDialog(remote.getCurrentWindow(),
                     {
+                        defaultPath: stage_dir,
                         properties: ['openFile']
                     }, (filepath) => { console.log('selected ' + filepath)}).then(result => {
-                        this.stageFilePath = result.filePaths[0];
-                        this.stageFileName.name = path.basename(this.stageFilePath)
-                        this.stageFileName.set = false // to prevent unintentional overwrite
-                        console.log(this.stageFilePath);
+                        this.stageFile.dirPath = path.dirname(result.filePaths[0])
+                        this.stageFile.name = path.basename(result.filePaths[0])
+                        this.stageFile.set = false // to prevent unintentional overwrite
 
-                        var rec = readCsvSync(this.stageFilePath, {columns:false, from_line: 8});
+                        stageFilePath = path.join(this.stageFile.dirPath, this.stageFile.name)
+                        var rec = readCsvSync(stageFilePath, {columns:false, from_line: 8});
                         
-                        for (i = 0; i < rec.length; i++){
+                        for (i = 0; i < Math.min(rec.length, epochCells.length); i++){
                             stageLabel = rec[i][0];
                             if (stageLabel === '-'){
                                 sn = 0;
@@ -222,10 +230,9 @@
                 },
                 setStageFileName(e) {
                     filename = e.target.value
-                    if (typeof filename !== ""){
-                        this.stageFileName.name = filename
-                        this.stageFileName.set = true
-                        this.stageFilePath = path.join(path.dirname(this.stageFilePath), this.stageFileName.name)
+                    if (typeof filename == "string"){
+                        this.stageFile.name = filename
+                        this.stageFile.set = true
                     }
                 },
                 setJumpToEpoch(e) {
@@ -253,24 +260,37 @@
                         quoted_string: false
                     });
 
-                    now = new Date()
+                    nowStr = moment().format("YYYY-MM-DD HH:mm:ss")
                     commentStr = 
+                    "# Staged by manual inspection of \n"  +
+                    "# " + faster_dir + ",\n" +
+                    "# recorded with: \n" +
+                    "# " + device_id + "\n" +
                     "#\n" +
                     "#\n" +
                     "#\n" +
-                    "#\n" +
-                    "#\n" +
-                    "#\n" +
-                    "# Staged by manual inspection saved at " + now.toFormat("YYYY/MM/DD HH24:MI:SS") + "\n"
+                    "# saved at " + nowStr + "\n"
                     "Stage\n"
-                    fs.writeFileSync(this.stageFilePath, commentStr)
-                    fs.appendFileSync(this.stageFilePath, csvString)
+                    stageFilePath = path.join(this.stageFile.dirPath, this.stageFile.name)
+                    console.log('stage saved at: ' + stageFilePath)
+                    fs.writeFileSync(stageFilePath, commentStr)
+                    fs.appendFileSync(stageFilePath, csvString)
+
+                    remote.dialog.showMessageBox(remote.getCurrentWindow(), {
+                        buttons: ["OK"],
+                        message: 'stage saved at: ' + stageFilePath
+                    }, null)
+                },
+                openSpecWindow(){
+                    spec_win = window.open("spectrum.html", "spectrum", "width=1200,height=400,top=500,left=10");
+                },
+                openVideoWindow(){
+                    video_win = window.open("video.html", "video", "width=380,height=400,top=500,left=1200");
                 }
             },
             mounted(){
-                spec_win = window.open("spectrum.html", "spectrum", "width=1200, height=290");
-                video_win = window.open("video.html", "video", "width=380, height=300");
-                // video_win.postMessage({'action':'initialize', 'message':faster_dir})
+                this.openSpecWindow()
+                this.openVideoWindow()
             }
         })
 

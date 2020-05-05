@@ -11,7 +11,8 @@ Menu.setApplicationMenu(null);
 function createWindow() {
 
     //ウインドウの作成
-    win = new BrowserWindow({ webPreferences: { nodeIntegration: true }, width: 800, height: 400 })
+    win = new BrowserWindow({ webPreferences: { nodeIntegration: true }, width: 1600, height: 500})
+    win.setPosition(0, 0)
 
     //ウインドウに表示する内容
     win.loadFile('signal_view.html')
