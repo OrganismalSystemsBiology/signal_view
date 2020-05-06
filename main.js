@@ -19,11 +19,17 @@ function createWindow() {
  
     if (global.sharedObject.args.length < 4) {
         // faster_dir と device_id がコマンドラインで与えられていない場合、ダイアログ起動
-        result = dialog.showOpenDialogSync(win,{defaultPath: ".", properties: ['openDirectory']});
-        voltageDirPath = path.normalize(result[0])
-        device_id = path.basename(voltageDirPath)
-        faster_dir = path.dirname(path.dirname(path.dirname(path.dirname(voltageDirPath))))
-        global.sharedObject.args = ["", "", faster_dir, device_id]
+        result = dialog.showOpenDialogSync(win,{defaultPath: ".", properties: ['openDirectory'],
+                                                title: "select the voltage directory of a recording device"});
+        if(!result){
+            win.close()
+            return
+        }else{
+            voltageDirPath = path.normalize(result[0])
+            device_id = path.basename(voltageDirPath)
+            faster_dir = path.dirname(path.dirname(path.dirname(path.dirname(voltageDirPath))))
+            global.sharedObject.args = ["", "", faster_dir, device_id]
+        }
     } else {
         faster_dir = path.normalize(global.sharedObject.args[2])
         device_id = global.sharedObject.args[3]
@@ -35,7 +41,7 @@ function createWindow() {
     win.loadFile('signal_view.html')
 
     //デバッグ画面表示
-    win.webContents.openDevTools()
+    // win.webContents.openDevTools()
 
     //このウインドウが閉じられたときの処理
     win.on('closed', () => {
