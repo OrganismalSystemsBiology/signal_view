@@ -1,5 +1,4 @@
 <html>
-
 <head>
     <style>
         header {
@@ -49,10 +48,10 @@
             <button @click="openSpecWindow">  spectrum  </button>
             <button @click="openVideoWindow">  video  </button>
         </header>
-        <one-page v-for="i in 10" :key="i" v-bind:filename="pages[i-1].filename" v-bind:start-stage-idx="pages[i-1].startStageIdx"></one-page>
+        <one-page v-for="i in pageNum" :key="i" v-bind:filename="pages[i-1].filename" v-bind:start-stage-idx="pages[i-1].startStageIdx"></one-page>
     </div>
-    <script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/vue-scrollto"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vue@2.6.11"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vue-scrollto@2.18.1"></script>
 
     <script>
         const COLOR_WAKE='rgba(239, 94, 38, 0.3)'
@@ -72,7 +71,7 @@
         var faster_dir = path.resolve(path.normalize(args[2]))
         var device_id = args[3]
         var stage_dir = path.join(faster_dir, "result")
-        var pageNum = 10
+        var pageNum
         var epochPerPage = 45
         var spec_win
         var video_win
@@ -198,7 +197,7 @@
                     console.log("video for " + idx)
                 },
                 loadStages() {
-                   remote.dialog.showOpenDialog(remote.getCurrentWindow(),
+                    remote.dialog.showOpenDialog(remote.getCurrentWindow(),
                     {
                         defaultPath: stage_dir,
                         properties: ['openFile']

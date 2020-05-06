@@ -1,4 +1,5 @@
-const { app, Menu, BrowserWindow } = require('electron')
+const { app, Menu, BrowserWindow, dialog } = require('electron')
+var path = require('path')
 
 let win
 
@@ -10,8 +11,24 @@ Menu.setApplicationMenu(null);
 
 function createWindow() {
 
+    var faster_dir
+    var device_id
+
     //ウインドウの作成
     win = new BrowserWindow({ webPreferences: { nodeIntegration: true }, width: 1600, height: 500})
+ 
+    if (global.sharedObject.args.length < 4) {
+        // faster_dir と device_id がコマンドラインで与えられていない場合、ダイアログ起動
+        result = dialog.showOpenDialogSync(win,{defaultPath: ".", properties: ['openDirectory']});
+        voltageDirPath = path.normalize(result[0])
+        device_id = path.basename(voltageDirPath)
+        faster_dir = path.dirname(path.dirname(path.dirname(path.dirname(voltageDirPath))))
+        global.sharedObject.args = ["", "", faster_dir, device_id]
+    } else {
+        faster_dir = path.normalize(global.sharedObject.args[2])
+        device_id = global.sharedObject.args[3]
+    }
+
     win.setPosition(0, 0)
 
     //ウインドウに表示する内容
@@ -23,6 +40,11 @@ function createWindow() {
     //このウインドウが閉じられたときの処理
     win.on('closed', () => {
         win = null
+    })
+
+    // set window title
+    win.webContents.on('did-finish-load', () =>{
+        win.setTitle('signal-view [' + faster_dir + '] (' + device_id + ')' )
     })
 }
 
