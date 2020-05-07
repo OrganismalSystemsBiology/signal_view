@@ -37,7 +37,6 @@
 </head>
 
 <body>
-
     <div id="grids" style="padding: 25px 0 0 0">
         <header>
             <button style="margin: 0px 0px 0px 200px" @click="loadStages"> open </button>
@@ -148,7 +147,7 @@
                 pages: plotPages,
                 epochCells: epochCells,
                 stageFile: {set:false, name:"no stage file opend", dirPath:stage_dir},
-                jumpToEpoch: 1,
+                jumpToEpoch: 1
             },
             methods: {
                 toggle_stage: function(idx) {
