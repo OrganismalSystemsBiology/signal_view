@@ -209,7 +209,7 @@
                         var rec = readCsvSync(stageFilePath, {columns:false, from_line: 8});
                         
                         for (i = 0; i < Math.min(rec.length, epochCells.length); i++){
-                            stageLabel = rec[i][0];
+                            stageLabel = rec[i][0].trim();
                             if (stageLabel === '-'){
                                 sn = 0;
                             }else if (stageLabel === 'Unknown'){
