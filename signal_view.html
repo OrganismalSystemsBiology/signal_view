@@ -57,6 +57,7 @@
         const COLOR_NREM='rgba(35, 180, 239, 0.3)'
         const COLOR_REM ='rgba(107, 142, 35, 0.3)'
         const COLOR_UNKNOWN='rgba(105, 105, 105, 0.3)'
+        const COLOR_MARK='rgba(246, 210, 0, 0.3)'
         const COLOR_NONE='transparent'
 
         var moment = require('moment')
@@ -96,7 +97,7 @@
         // prepare a list of initial stage
         var epochCells = [];
         for (var i = 0; i < pageNum * epochPerPage; i++){
-            epochCells.push({idx:i, focus:false, stageNum:0}) // 0...not touched, 3...NREM, 4...Wake, 2...REM, 1...Unknown
+            epochCells.push({idx:i, focus:false, stageNum:0}) // 0...not touched, 3...NREM, 4...Wake, 2...REM, 1...Unknown, 5...Mark
         }
 
         Vue.component('one-page', {
@@ -112,6 +113,7 @@
                     @keydown.50="$parent.set_stage(stage.idx, 2)"
                     @keydown.51="$parent.set_stage(stage.idx, 3)"
                     @keydown.52="$parent.set_stage(stage.idx, 4)"
+                    @keydown.53="$parent.set_stage(stage.idx, 5)"
                     @keydown.48="$parent.set_stage(stage.idx, 0)"
                     @keydown.esc="$parent.set_stage(stage.idx, 0)"
                     @mouseover="$parent.show_spectrum(stage.idx)"
@@ -137,6 +139,9 @@
             </div>
             <div class="stage-mask" v-else-if="stageNum===4">
                 W
+            </div>
+            <div class="stage-mask" v-else-if="stageNum===5">
+                M
             </div>
             `
         })
@@ -178,6 +183,8 @@
                         color = COLOR_NREM;
                     } else if (stageNum == 4){
                         color = COLOR_WAKE;
+                    } else if (stageNum == 5){
+                        color = COLOR_MARK;
                     } else {
                         color = COLOR_NONE;
                     }
@@ -220,6 +227,8 @@
                                 sn = 3;
                             }else if (stageLabel === 'Wake'){
                                 sn = 4;
+                            }else if (stageLabel === 'Mark'){
+                                sn = 5;
                             }else{
                                 sn = 0;
                             }
@@ -250,6 +259,8 @@
                             stageLabel = "NREM";
                         } else if (stageNum == 4) {
                             stageLabel = "Wake";
+                        } else if (stageNum == 5) {
+                            stageLabel = "Mark";
                         } else {
                             stageLabel = "-";
                         }
