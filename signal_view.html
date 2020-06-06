@@ -245,7 +245,7 @@
                     }
                 },
                 setJumpToEpoch(e) {
-                    this.jumpToEpoch = Math.floor((e.target.value-1) / epochPerPage) * epochPerPage + 1
+                    this.jumpToEpoch = Math.floor((Math.max(e.target.value,1)-1) / epochPerPage) * epochPerPage + 1
                 },
                 saveStages() {
                     stageTable = [];
