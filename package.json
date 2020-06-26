@@ -1,6 +1,6 @@
 {
   "name": "faster2_signal_view",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "viewing and staging the EEG/EMG signal of Faster2",
   "author": "Laboratory for Synthetic Biology, RIKEN <rikuhiro@gmail.com>",
   "license": "MIT",

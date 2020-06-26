@@ -1,6 +1,8 @@
 const { app, Menu, BrowserWindow, dialog } = require('electron')
 var path = require('path')
 
+app.commandLine.appendSwitch('js-flags', '--max-old-space-size=8192');
+
 let win
 
 // コマンドライン引数
