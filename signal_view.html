@@ -51,6 +51,7 @@
     </div>
     <script src="https://cdn.jsdelivr.net/npm/vue@2.6.11"></script>
     <script src="https://cdn.jsdelivr.net/npm/vue-scrollto@2.18.1"></script>
+    <script src="https://cdn.jsdelivr.net/npm/fflate/umd/index.js"></script>
 
     <script>
         const COLOR_WAKE='rgba(239, 94, 38, 0.3)'
@@ -71,21 +72,25 @@
         var faster_dir = path.resolve(path.normalize(args[2]))
         var device_id = args[3]
         var stage_dir = path.join(faster_dir, "result")
-        var pageNum
+        var mes_len_sec = 3600*24*5
+        var epoch_len_sec = 8
         var epochPerPage = 45
+        var pageNum
+        var epoch_num_aday
         var spec_win
         var video_win
 
         console.log('faster_dir: ' + faster_dir)
         console.log('stage_dir:' + stage_dir)
-        filenames = fs.readdirSync(path.join(faster_dir, "result", "figure", "voltage", device_id))
-        pageNum = filenames.length
+        pageNum = mes_len_sec / epoch_len_sec / epochPerPage
+        epoch_num_aday = 3600*24 / epoch_len_sec
 
         // prepare a list of files
         var plotPages = [];
         for (var i = 0; i < pageNum; i++) {
             idx = (i * epochPerPage + 1).toString().padStart(6, '0')
-            filename = path.normalize(path.join(faster_dir, "result", "figure","voltage", device_id, device_id + "." + idx + ".jpg"))
+            day_idx = (Math.floor(idx / epoch_num_aday) + 1).toString().padStart(2, '0')
+            filename = path.normalize(path.join(faster_dir, "result", "figure","voltage", device_id, device_id + "_day" + day_idx + ".zip", device_id + "." + idx + ".jpg"))
             filename = filename.replace(/\\/g, '/')
             plotPages.push({
                 filename: filename,
@@ -103,7 +108,7 @@
         Vue.component('one-page', {
             props: ['filename', 'startStageIdx'],
             template: `
-            <div v-bind:id="'epoch'+startStageIdx" class="grid" v-bind:style="{'background-image': 'url(' +  filename+ ')'}">
+            <div v-bind:id="'epoch'+startStageIdx" class="grid" v-bind:data-src="filename">
                 <button v-for="stage in $parent.epochCells.slice(startStageIdx, startStageIdx + 45)" 
                     v-bind:style="{'background-color':$parent.bgColor(stage.stageNum) }" 
                     style="position: relative; border-style: none"
@@ -296,9 +301,71 @@
                 },
                 openVideoWindow(){
                     video_win = window.open("video.html", "video", "width=380,height=400,top=500,left=1200");
+                },
+                extractZippedImage(){
+                    // Extract zip files
+                    const zipFiles = {};
+                    for (const div of document.querySelectorAll('div.grid')) {
+                    const fullStyle = div.getAttribute('data-src');
+                    // Finds the filepath of what to extract
+                    const fnInd = fullStyle.indexOf('.zip/') + 4;
+                    const fnIdd_e = fullStyle.indexOf('.jpg') + 4
+                    if (fnInd == 3) throw new Error(`Invalid data-src "${fullStyle}"`);
+                    
+                    const zipURL = fullStyle.slice(0, fnInd);
+                    const filepath = fullStyle.slice(fnInd + 1, fnIdd_e);
+                    if (!zipFiles[zipURL]) zipFiles[zipURL] = {};
+                    // Stores ZIP URLs, filepaths, and elements together
+                    zipFiles[zipURL][filepath] = div;
+                    }
+                    for (const zipURL in zipFiles) {
+                    const filepaths = zipFiles[zipURL];
+                    // Download the ZIP
+                    fetch(zipURL).then(async res => {
+                        // unzip logic
+                        const unzipper = new fflate.Unzip(async file => {
+                            const imgStream = new ReadableStream({
+                            start(controller) {
+                                file.ondata = (err, chunk, final) => {
+                                if (err) controller.error(err);
+                                else {
+                                    controller.enqueue(chunk);
+                                    if (final) controller.close();
+                                }
+                                }
+                                file.start();
+                            },
+                            cancel() {
+                                file.terminate();
+                            }
+                            });
+                            // Create a blob from the stream
+                            const blob = await (new Response(imgStream)).blob();
+                            // Use a blob URL as the source
+                            // console.log(file.name);
+                            if (file.name in filepaths) {
+                                tmp_path =  URL.createObjectURL(blob)
+                                filepaths[file.name].style.background = "url(" + tmp_path + ")";
+                            };
+                        });
+                        unzipper.register(fflate.UnzipInflate);
+                        // Manually push each chunk in the ZIP stream through fflate
+                        const reader = res.body.getReader();
+                        while (true) {
+                        const { done, value } = await reader.read();
+                        if (done) {
+                            // last chunk is empty
+                            unzipper.push(new Uint8Array(0), true);
+                            break;
+                        };
+                        unzipper.push(value);
+                        }
+                    });
+                    }
                 }
             },
             mounted(){
+                this.extractZippedImage()
                 this.openSpecWindow()
                 this.openVideoWindow()
             }
