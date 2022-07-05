@@ -82,7 +82,7 @@
 
         console.log('faster_dir: ' + faster_dir)
         console.log('stage_dir:' + stage_dir)
-        pageNum = mes_len_sec / epoch_len_sec / epochPerPage
+        pageNum = 5 // mes_len_sec / epoch_len_sec / epochPerPage
         epoch_num_aday = 3600*24 / epoch_len_sec
 
         // prepare a list of files
@@ -156,8 +156,9 @@
             data: {
                 pages: plotPages,
                 epochCells: epochCells,
-                stageFile: {set:false, name:"no stage file opend", dirPath:stage_dir},
-                jumpToEpoch: 1
+                stageFile: {set:false, name:"no stage file opened", dirPath:stage_dir},
+                jumpToEpoch: 1,
+                blobname: "dummy.jpg"
             },
             methods: {
                 toggle_stage: function(idx) {
@@ -197,11 +198,20 @@
                 },
                 show_spectrum: function(idx){
                     page_str = (Math.floor(idx/1000)*1000 + 1).toString().padStart(6, '0')
-                    spec_plot_filename = path.join(faster_dir, "result", "figure", "spectrum", device_id, page_str, device_id + "." + (idx + 1).toString().padStart(6, '0') + '.jpg')
+                    spec_plot_zippath = path.join(faster_dir, "result", "figure", "spectrum", device_id, page_str + '.zip')
+                    spec_plot_filename = device_id + "." + (idx + 1).toString().padStart(6, '0') + '.jpg'
                     img_tag_src = spec_plot_filename
                     img_tag_alt = spec_plot_filename
-                    spec_win.postMessage(img_tag_src)
-                    console.log("spectrum for " + idx)
+                    fs.readFile(spec_plot_zippath, async function(err, data) {
+                        unzipped = fflate.unzipSync(data, {filter(file) {return file.name == spec_plot_filename}})
+                        imgData = unzipped[spec_plot_filename]
+                        blob = await (new Response(imgData)).blob();
+                        tmp_path =  URL.createObjectURL(blob);
+                        spec_win.postMessage(tmp_path)
+                        console.log("spectrum for " + idx)
+                    });
+                    console.log(this.blobname)
+
                 },
                 seek_video: function(idx){
                     video_win.postMessage({'action':'seek', 'message':idx})
@@ -306,17 +316,17 @@
                     // Extract zip files
                     const zipFiles = {};
                     for (const div of document.querySelectorAll('div.grid')) {
-                    const fullStyle = div.getAttribute('data-src');
-                    // Finds the filepath of what to extract
-                    const fnInd = fullStyle.indexOf('.zip/') + 4;
-                    const fnIdd_e = fullStyle.indexOf('.jpg') + 4
-                    if (fnInd == 3) throw new Error(`Invalid data-src "${fullStyle}"`);
-                    
-                    const zipURL = fullStyle.slice(0, fnInd);
-                    const filepath = fullStyle.slice(fnInd + 1, fnIdd_e);
-                    if (!zipFiles[zipURL]) zipFiles[zipURL] = {};
-                    // Stores ZIP URLs, filepaths, and elements together
-                    zipFiles[zipURL][filepath] = div;
+                        const fullStyle = div.getAttribute('data-src');
+                        // Finds the filepath of what to extract
+                        const fnInd = fullStyle.indexOf('.zip/') + 4;
+                        const fnIdd_e = fullStyle.indexOf('.jpg') + 4
+                        if (fnInd == 3) throw new Error(`Invalid data-src "${fullStyle}"`);
+                        
+                        const zipURL = fullStyle.slice(0, fnInd);
+                        const filepath = fullStyle.slice(fnInd + 1, fnIdd_e);
+                        if (!zipFiles[zipURL]) zipFiles[zipURL] = {};
+                        // Stores ZIP URLs, filepaths, and elements together
+                        zipFiles[zipURL][filepath] = div;
                     }
                     for (const zipURL in zipFiles) {
                     const filepaths = zipFiles[zipURL];

@@ -12,7 +12,8 @@
                 },
                 mounted() {
                     window.addEventListener('message', (e) => {
-                        this.filename=e.data
+                        img_tag = document.querySelectorAll('img')[0]
+                        img_tag.src = e.data
                     })
                 }
             })
