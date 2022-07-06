@@ -43,7 +43,7 @@ function createWindow() {
     win.loadFile('signal_view.html')
 
     //デバッグ画面表示
-    win.webContents.openDevTools()
+    //win.webContents.openDevTools()
 
     //このウインドウが閉じられたときの処理
     win.on('closed', () => {
