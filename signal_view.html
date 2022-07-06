@@ -55,26 +55,26 @@
     <script src="https://cdn.jsdelivr.net/npm/fflate/umd/index.js"></script>
 
     <script>
-        const COLOR_WAKE='rgba(239, 94, 38, 0.3)'
-        const COLOR_NREM='rgba(35, 180, 239, 0.3)'
-        const COLOR_REM ='rgba(107, 142, 35, 0.3)'
+        const COLOR_WAKE='rgba(220, 38, 127, 0.3)'
+        const COLOR_NREM='rgba(100, 143, 255, 0.3)'
+        const COLOR_REM ='rgba(255, 176, 0, 0.3)'
         const COLOR_UNKNOWN='rgba(105, 105, 105, 0.3)'
-        const COLOR_MARK='rgba(246, 210, 0, 0.3)'
+        const COLOR_MARK='rgba(107, 142, 35, 0.3)'
         const COLOR_NONE='transparent'
 
-        var moment = require('moment')
-        var {remote} = require('electron');
-        var {dialog} = remote;
-        var fs = require('fs');
-        var path = require('path');
-        var stringifySync = require("csv-stringify/lib/sync");
-        var parse = require('csv-parse/lib/sync');
-        var args = remote.getGlobal('sharedObject').args
-        var faster_dir = path.resolve(path.normalize(args[2]))
-        var device_id = args[3]
-        var stage_dir = path.join(faster_dir, "result")
-        var spec_win
-        var video_win
+        let moment = require('moment')
+        let {remote} = require('electron');
+        let {dialog} = remote;
+        let fs = require('fs');
+        let path = require('path');
+        let stringifySync = require("csv-stringify/lib/sync");
+        let parse = require('csv-parse/lib/sync');
+        let args = remote.getGlobal('sharedObject').args
+        let faster_dir = path.resolve(path.normalize(args[2]))
+        let device_id = args[3]
+        let stage_dir = path.join(faster_dir, "result")
+        let spec_win
+        let video_win
 
         console.log('faster_dir: ' + faster_dir)
         console.log('stage_dir:' + stage_dir)
@@ -88,8 +88,8 @@
         const LoadingBar = window['LoadingBar'];
 
         // prepare a list of files
-        var plotPages = [];
-        for (var i = 0; i < pageNum; i++) {
+        let plotPages = [];
+        for (let i = 0; i < pageNum; i++) {
             idx = (i * epochPerPage + 1).toString().padStart(6, '0')
             day_idx = (Math.floor(idx / epoch_num_aday) + 1).toString().padStart(2, '0')
             filename = path.normalize(path.join(faster_dir, "result", "figure","voltage", device_id, device_id + "_day" + day_idx + ".zip", device_id + "." + idx + ".jpg"))
@@ -102,8 +102,8 @@
         console.log(plotPages)
 
         // prepare a list of initial stage
-        var epochCells = [];
-        for (var i = 0; i < pageNum * epochPerPage; i++){
+        let epochCells = [];
+        for (let i = 0; i < pageNum * epochPerPage; i++){
             epochCells.push({idx:i, focus:false, stageNum:0}) // 0...not touched, 3...NREM, 4...Wake, 2...REM, 1...Unknown, 5...Mark
         }
 
@@ -159,7 +159,6 @@
                 epochCells: epochCells,
                 stageFile: {set:false, name:"no stage file opened", dirPath:stage_dir},
                 jumpToEpoch: 1,
-                blobname: "dummy.jpg",
                 progress: 0,
                 isLoading: true
             },
@@ -213,7 +212,6 @@
                         spec_win.postMessage(tmp_path)
                         console.log("spectrum for " + idx)
                     });
-                    console.log(this.blobname)
 
                 },
                 seek_video: function(idx){
@@ -231,7 +229,7 @@
                         this.stageFile.set = false // to prevent unintentional overwrite
 
                         stageFilePath = path.join(this.stageFile.dirPath, this.stageFile.name)
-                        var rec = readCsvSync(stageFilePath, {columns:false, from_line: 8});
+                        let rec = readCsvSync(stageFilePath, {columns:false, from_line: 8});
                         
                         for (i = 0; i < Math.min(rec.length, epochCells.length); i++){
                             stageLabel = rec[i][0].trim();
