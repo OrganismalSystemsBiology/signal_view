@@ -83,7 +83,7 @@
         const mes_len_sec = signalViewJson['mes_len_sec']
         const epoch_len_sec = signalViewJson['epoch_len_sec']
         const epochPerPage = signalViewJson['epoch_per_page']
-        const pageNum = 50 //mes_len_sec / epoch_len_sec / epochPerPage
+        const pageNum = mes_len_sec / epoch_len_sec / epochPerPage
         const epoch_num_aday = 3600*24 / epoch_len_sec
         const LoadingBar = window['LoadingBar'];
 
