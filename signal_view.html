@@ -72,18 +72,18 @@
         var faster_dir = path.resolve(path.normalize(args[2]))
         var device_id = args[3]
         var stage_dir = path.join(faster_dir, "result")
-        var mes_len_sec = 3600*24*5
-        var epoch_len_sec = 8
-        var epochPerPage = 45
-        var pageNum
-        var epoch_num_aday
         var spec_win
         var video_win
 
         console.log('faster_dir: ' + faster_dir)
         console.log('stage_dir:' + stage_dir)
-        pageNum = 5 // mes_len_sec / epoch_len_sec / epochPerPage
-        epoch_num_aday = 3600*24 / epoch_len_sec
+        const target_dir = path.normalize(path.join(faster_dir, "result", "figure", "voltage", device_id))
+        const signalViewJson = readSignalViewJson(target_dir)
+        const mes_len_sec = signalViewJson['mes_len_sec']
+        const epoch_len_sec = signalViewJson['epoch_len_sec']
+        const epochPerPage = signalViewJson['epoch_per_page']
+        const pageNum = mes_len_sec / epoch_len_sec / epochPerPage
+        const epoch_num_aday = 3600*24 / epoch_len_sec
 
         // prepare a list of files
         var plotPages = [];
@@ -329,48 +329,48 @@
                         zipFiles[zipURL][filepath] = div;
                     }
                     for (const zipURL in zipFiles) {
-                    const filepaths = zipFiles[zipURL];
-                    // Download the ZIP
-                    fetch(zipURL).then(async res => {
-                        // unzip logic
-                        const unzipper = new fflate.Unzip(async file => {
-                            const imgStream = new ReadableStream({
-                            start(controller) {
-                                file.ondata = (err, chunk, final) => {
-                                if (err) controller.error(err);
-                                else {
-                                    controller.enqueue(chunk);
-                                    if (final) controller.close();
+                        const filepaths = zipFiles[zipURL];
+                        // Download the ZIP
+                        fetch(zipURL).then(async res => {
+                            // unzip logic
+                            const unzipper = new fflate.Unzip(async file => {
+                                const imgStream = new ReadableStream({
+                                start(controller) {
+                                    file.ondata = (err, chunk, final) => {
+                                    if (err) controller.error(err);
+                                    else {
+                                        controller.enqueue(chunk);
+                                        if (final) controller.close();
+                                    }
+                                    }
+                                    file.start();
+                                },
+                                cancel() {
+                                    file.terminate();
                                 }
-                                }
-                                file.start();
-                            },
-                            cancel() {
-                                file.terminate();
-                            }
+                                });
+                                // Create a blob from the stream
+                                const blob = await (new Response(imgStream)).blob();
+                                // Use a blob URL as the source
+                                // console.log(file.name);
+                                if (file.name in filepaths) {
+                                    tmp_path =  URL.createObjectURL(blob)
+                                    filepaths[file.name].style.background = "url(" + tmp_path + ")";
+                                };
                             });
-                            // Create a blob from the stream
-                            const blob = await (new Response(imgStream)).blob();
-                            // Use a blob URL as the source
-                            // console.log(file.name);
-                            if (file.name in filepaths) {
-                                tmp_path =  URL.createObjectURL(blob)
-                                filepaths[file.name].style.background = "url(" + tmp_path + ")";
+                            unzipper.register(fflate.UnzipInflate);
+                            // Manually push each chunk in the ZIP stream through fflate
+                            const reader = res.body.getReader();
+                            while (true) {
+                            const { done, value } = await reader.read();
+                            if (done) {
+                                // last chunk is empty
+                                unzipper.push(new Uint8Array(0), true);
+                                break;
                             };
+                            unzipper.push(value);
+                            }
                         });
-                        unzipper.register(fflate.UnzipInflate);
-                        // Manually push each chunk in the ZIP stream through fflate
-                        const reader = res.body.getReader();
-                        while (true) {
-                        const { done, value } = await reader.read();
-                        if (done) {
-                            // last chunk is empty
-                            unzipper.push(new Uint8Array(0), true);
-                            break;
-                        };
-                        unzipper.push(value);
-                        }
-                    });
                     }
                 }
             },
@@ -384,6 +384,11 @@
         function readCsvSync(filename, options) {
             const content = fs.readFileSync(filename).toString();
             return parse(content, options);
+        }
+
+        function readSignalViewJson(tagert_dir){
+            const jsonObject = JSON.parse(fs.readFileSync(path.join(target_dir, 'signal_view.json'), 'utf8'));
+            return jsonObject
         }
     </script>
 </body>
