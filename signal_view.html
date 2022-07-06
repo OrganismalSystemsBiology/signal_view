@@ -39,6 +39,7 @@
 <body>
     <div id="grids" style="padding: 25px 0 0 0">
         <header>
+            <span class="header-component" v-show="isLoading">Loading... {{ progress }}%</span>
             <button style="margin: 0px 0px 0px 200px" @click="loadStages"> open </button>
             <button @click="saveStages" v-bind:disabled="!stageFile.set">  save  </button>
             <input class="header-component" v-bind:value="stageFile.name" v-on:input="setStageFileName"></input>
@@ -82,8 +83,9 @@
         const mes_len_sec = signalViewJson['mes_len_sec']
         const epoch_len_sec = signalViewJson['epoch_len_sec']
         const epochPerPage = signalViewJson['epoch_per_page']
-        const pageNum = mes_len_sec / epoch_len_sec / epochPerPage
+        const pageNum = 50 //mes_len_sec / epoch_len_sec / epochPerPage
         const epoch_num_aday = 3600*24 / epoch_len_sec
+        const LoadingBar = window['LoadingBar'];
 
         // prepare a list of files
         var plotPages = [];
@@ -109,7 +111,7 @@
             props: ['filename', 'startStageIdx'],
             template: `
             <div v-bind:id="'epoch'+startStageIdx" class="grid" v-bind:data-src="filename">
-                <button v-for="stage in $parent.epochCells.slice(startStageIdx, startStageIdx + 45)" 
+                <button v-for="stage in $parent.epochCells.slice(startStageIdx, startStageIdx + epochPerPage)" 
                     v-bind:style="{'background-color':$parent.bgColor(stage.stageNum) }" 
                     style="position: relative; border-style: none"
                     @focus="$parent.toggle_stage(stage.idx); $parent.seek_video(stage.idx)"
@@ -126,8 +128,7 @@
                     <stage-mask :stage-num="stage.stageNum"">
                     </stage-mask>
                 </button>
-             </div>`,
-            
+             </div>`
         })
 
         Vue.component('stage-mask',{
@@ -158,7 +159,9 @@
                 epochCells: epochCells,
                 stageFile: {set:false, name:"no stage file opened", dirPath:stage_dir},
                 jumpToEpoch: 1,
-                blobname: "dummy.jpg"
+                blobname: "dummy.jpg",
+                progress: 0,
+                isLoading: true
             },
             methods: {
                 toggle_stage: function(idx) {
@@ -312,6 +315,12 @@
                 openVideoWindow(){
                     video_win = window.open("video.html", "video", "width=380,height=400,top=500,left=1200");
                 },
+                progressTo(val){
+                    this.progress = val
+                },
+                progressDone(){
+                    this.isLoading = false
+                },
                 extractZippedImage(){
                     // Extract zip files
                     const zipFiles = {};
@@ -330,6 +339,7 @@
                     }
                     for (const zipURL in zipFiles) {
                         const filepaths = zipFiles[zipURL];
+                        let counter = 0
                         // Download the ZIP
                         fetch(zipURL).then(async res => {
                             // unzip logic
@@ -354,8 +364,13 @@
                                 // Use a blob URL as the source
                                 // console.log(file.name);
                                 if (file.name in filepaths) {
+                                    counter++;
                                     tmp_path =  URL.createObjectURL(blob)
                                     filepaths[file.name].style.background = "url(" + tmp_path + ")";
+                                    this.progressTo(100*counter/pageNum)
+                                    if (counter == pageNum){
+                                        this.progressDone()
+                                    }
                                 };
                             });
                             unzipper.register(fflate.UnzipInflate);
