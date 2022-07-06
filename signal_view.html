@@ -15,7 +15,6 @@
         .grid {
             display: grid;
             grid-gap: 2px;
-            background-size: 100% 100%;
             background-repeat: no-repeat;
             min-width: 1600px;
             min-height: 1200px;
@@ -33,10 +32,6 @@
             top: 35%; 
             left: 37%; 
         }
-        [v-cloak] > * {
-            Display: none
-        }
-
         [v-cloak]::before {
             display: block;
             margin-top: 100px;
@@ -48,6 +43,9 @@
             background-position: center;
             background-size: 36px;
             font-size: 36pt; text-align: center; content: "starting"; 
+        }
+        [v-cloak] > * {
+            Display: none
         }
     </style>
 </head>
@@ -66,7 +64,6 @@
         </header>
         <one-page v-for="i in pageNum" :key="i" v-bind:filename="pages[i-1].filename" v-bind:start-stage-idx="pages[i-1].startStageIdx"></one-page>
     </div>
-    <div id="loader"></div>
     <script src="https://cdn.jsdelivr.net/npm/vue@2.6.11"></script>
     <script src="https://cdn.jsdelivr.net/npm/vue-scrollto@2.18.1"></script>
     <script src="https://cdn.jsdelivr.net/npm/fflate/umd/index.js"></script>
@@ -100,7 +97,7 @@
         const mes_len_sec = signalViewJson['mes_len_sec']
         const epoch_len_sec = signalViewJson['epoch_len_sec']
         const epochPerPage = signalViewJson['epoch_per_page']
-        const pageNum = mes_len_sec / epoch_len_sec / epochPerPage
+        const pageNum = 50 //mes_len_sec / epoch_len_sec / epochPerPage
         const epoch_num_aday = 3600*24 / epoch_len_sec
         const LoadingBar = window['LoadingBar'];
 
@@ -382,7 +379,7 @@
                                 if (file.name in filepaths) {
                                     this.loadingCounter++;
                                     tmp_path =  URL.createObjectURL(blob)
-                                    filepaths[file.name].style.background = "url(" + tmp_path + ")";
+                                    filepaths[file.name].style.background = "url(" + tmp_path + ") center top/cover no-repeat";
                                     this.progressTo(100*this.loadingCounter/pageNum)
                                     if (this.loadingCounter == pageNum){
                                         this.progressDone()
