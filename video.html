@@ -6,84 +6,12 @@
             <button @click="saveVideoInfo">  save  </button>
         </div>
         <script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
-        <script>
-            var moment = require('moment')
-            var path = require('path')
-            var {remote} = require('electron');
-            var fs = require('fs');
-            var parse = require('csv-parse/lib/sync');
-            var stringifySync = require("csv-stringify/lib/sync");
-            var args = remote.getGlobal('sharedObject').args
-            var faster_dir = path.resolve(path.normalize(args[2]))
-            var device_id = args[3]
-            function readCsvSync(filename, options) {
-                const content = fs.readFileSync(filename).toString();
-                return parse(content, options);
-            }
 
-        </script>
         <script>
-            // set the analysis start datetime from exp.info.csv
-            expInfoPath = path.join(faster_dir, "data", "exp.info.csv")
-            res = readCsvSync(expInfoPath, {columns:false, from_line: 2});
-            startDT = moment(res[0][2])
-            endDT = moment(res[0][3])
-            console.log(startDT)
-            startDTStr = this.startDT.format("YYYY/MM/DD HH:mm:ss")
-        </script>
-        <script>
-            // process video.info.csv
-            videoInfoPath = path.join(faster_dir, "video", device_id, "video.info.csv")
-            res = readCsvSync(videoInfoPath, {columns:false, from_line: 2});
-            videoInfo = []
-            for (i=0; i<res.length; i++){
-                r = res[i]
-                video_startDT = moment(r[1])
-                video_endDT   = moment(r[2])
-                videoInfo.push({filename: r[0], 
-                                start_dt: video_startDT,
-                                end_dt: video_endDT,
-                                start_a: video_startDT.diff(startDT), // analysis time of start: milliseconds relative to the analysis start
-                                end_a: video_endDT.diff(startDT), // analysis time of end: milliseconds relative to the analysis start
-                                offset: parseFloat(r[3])})
-            }
-            console.log(videoInfo)
-
-            // construct a mapping list from epoch index to video&position
-            epochNum = Math.floor(endDT.diff(startDT, 'seconds') / 8)
-            epochVideoList = Array(epochNum)
-            videoInfoCounter = 0
-            for (i=0; i<epochNum; i++){
-                epochTime = i * 8 * 1000 // milliseconds
-                vi = videoInfo[videoInfoCounter]
-                // skip the epoch if it is before the video
-                if (epochTime < vi['start_a']){
-                    epochVideoList[i] = {'video_src': 'noVideo', 'video_idx':-1, 'position': 0}
-                    continue
-                }
-
-                if (epochTime < vi['end_a']) {
-                    epochVideoList[i] = {'video_src': vi['filename'], 
-                                         'video_idx': videoInfoCounter,
-                                         'position': (epochTime - vi['start_a'])/1000 // seconds
-                                        }
-                } else {
-                    // seek the videoInfoCounter to cover the epochTime
-                    while ( (epochTime >= vi['end_a']) && ((videoInfo.length - 1) > videoInfoCounter) ){
-                        videoInfoCounter += 1
-                        vi = videoInfo[videoInfoCounter]
-                    }
-                    if (videoInfoCounter < (videoInfo.length - 1)){
-                        epochVideoList[i] = {'video_src': vi['filename'],
-                                             'video_idx': videoInfoCounter,
-                                             'position': (epochTime - vi['start_a'])/1000 // seconds
-                                            }    
-                    } else {
-                        epochVideoList[i] = {'video_src': 'noVideo', 'video_idx': -1, 'position': 0}
-                    }        
-                }
-            }
-            console.log(epochVideoList)
+            let epochVideoList
+            window.opener.api.requestEpochVideoList().then((res)=>{
+                epochVideoList = res
+            })
         </script>
 
         <script>
@@ -91,11 +19,6 @@
                 el: '#app',
                 data: {
                     src: null,
-                    isLoading: false,
-                    focusTime: 0,
-                    fasterDir: null,
-                    startDT: null,
-                    startDTStr: startDTStr,
                     videoHeight: 240,
                     videoWidth: 340,
                     currentEpochIdx: 0,
@@ -115,18 +38,20 @@
                 methods: {
                     seekVideoToCurrentEpochIdx(){
                         // set video offset 
-                        videoIdx = epochVideoList[this.currentEpochIdx]['video_idx']
-                        this.videoOffset = videoInfo[videoIdx]['offset']
-                        // set currentTime
-                        this.$refs.mouseVideo.currentTime = epochVideoList[this.currentEpochIdx]['position'] + this.videoOffset
+                        let videoIdx = epochVideoList[this.currentEpochIdx]['video_idx']
+                        window.opener.api.requestVideoOffset(videoIdx).then((offset)=>{
+                            this.videoOffset = offset
+                            // set currentTime
+                            this.$refs.mouseVideo.currentTime = epochVideoList[this.currentEpochIdx]['position'] + this.videoOffset
+                        })
                     },
                     seekVideo(idx){
                         this.currentEpochIdx = idx
-                        src = path.join(faster_dir, 'video', device_id, epochVideoList[idx]['video_src'])
+                        src = epochVideoList[idx]['video_src']
+                        console.log(src)
                         if (src != this.src){
                             // set src
                             this.src = src
-                            this.$refs.mouseVideo.src = src
                         }else{
                             this.$refs.mouseVideo.currentTime = epochVideoList[idx]['position'] + this.videoOffset
                             console.log('current time', this.$refs.mouseVideo.currentTime)
@@ -137,27 +62,19 @@
                         this.videoWidth = window.innerWidth;
                     },
                     setVideoOffset: function(e){
-                        this.videoOffset = parseFloat(e.target.value)
+                        let offset = parseFloat(e.target.value)
+                        this.videoOffset 
+                        if (isNaN(offset)) {
+                            this.videoOffset = 0
+                        }else{
+                            this.videoOffset = offset
+                        }
                         videoIdx = epochVideoList[this.currentEpochIdx]['video_idx']
-                        videoInfo[videoIdx]['offset'] = this.videoOffset
-                        console.log(videoInfo)
+                        window.opener.api.setVideoOffset(videoIdx, this.videoOffset)
                         this.seekVideo(this.currentEpochIdx)
                     },
                     saveVideoInfo() {
-                        videoInfoTable = []
-                        for(i=0; i<videoInfo.length; i++){
-                            videoInfoTable.push({
-                                filename: videoInfo[i]['filename'],
-                                start_dt: videoInfo[i]['start_dt'].format("YYYY-MM-DD HH:mm:ss.SSSSSS"),
-                                end_dt: videoInfo[i]['end_dt'].format("YYYY-MM-DD HH:mm:ss.SSSSSS"),
-                                offset: videoInfo[i]['offset']
-                            })
-                        }
-                        csvString = stringifySync(videoInfoTable, {
-                            header: ['filename', 'start_datetime', 'end_datetime', 'offset'],
-                            quoted_string: false
-                        });
-                        fs.writeFileSync(videoInfoPath, csvString)
+                        window.opener.api.saveVideoInfo()
                     }
                 }
             })

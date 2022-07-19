@@ -1,424 +1,374 @@
+<!DOCTYPE html>
 <html>
-<head>
-    <style>
-        header {
-            position: fixed; 
-            top: 0; 
-            width: 100%; 
-            z-index:1; 
-            background-color: rgba(0, 0, 0, 0.6);
-        }
-        .header-component {
-            z-index:1;
-            background-color: rgba(255, 255, 255, 0.6);
-        }
-        .grid {
-            display: grid;
-            grid-gap: 2px;
-            background-repeat: no-repeat;
-            min-width: 1600px;
-            min-height: 1200px;
-            width: 100%;
-            height: 100%;
-     
-            grid-template-columns: repeat(9, 1fr); 
-            grid-template-rows: repeat(5, 1fr);
-        }
-        .stage-mask{
-            font-size: 36pt;
-            font-family: 'arial unicode ms';
-            font-weight: bold;
-            position: absolute; 
-            top: 35%; 
-            left: 37%; 
-        }
-        [v-cloak]::before {
-            display: block;
-            margin-top: 100px;
-            margin-left: auto;
-            margin-right: auto;
-            padding-bottom: 100px;
-            background-image: url('data:image/gif;base64,R0lGODlhEAAQAPIAAP///wAAAMLCwkJCQgAAAGJiYoKCgpKSkiH/C05FVFNDQVBFMi4wAwEAAAAh/hpDcmVhdGVkIHdpdGggYWpheGxvYWQuaW5mbwAh+QQJCgAAACwAAAAAEAAQAAADMwi63P4wyklrE2MIOggZnAdOmGYJRbExwroUmcG2LmDEwnHQLVsYOd2mBzkYDAdKa+dIAAAh+QQJCgAAACwAAAAAEAAQAAADNAi63P5OjCEgG4QMu7DmikRxQlFUYDEZIGBMRVsaqHwctXXf7WEYB4Ag1xjihkMZsiUkKhIAIfkECQoAAAAsAAAAABAAEAAAAzYIujIjK8pByJDMlFYvBoVjHA70GU7xSUJhmKtwHPAKzLO9HMaoKwJZ7Rf8AYPDDzKpZBqfvwQAIfkECQoAAAAsAAAAABAAEAAAAzMIumIlK8oyhpHsnFZfhYumCYUhDAQxRIdhHBGqRoKw0R8DYlJd8z0fMDgsGo/IpHI5TAAAIfkECQoAAAAsAAAAABAAEAAAAzIIunInK0rnZBTwGPNMgQwmdsNgXGJUlIWEuR5oWUIpz8pAEAMe6TwfwyYsGo/IpFKSAAAh+QQJCgAAACwAAAAAEAAQAAADMwi6IMKQORfjdOe82p4wGccc4CEuQradylesojEMBgsUc2G7sDX3lQGBMLAJibufbSlKAAAh+QQJCgAAACwAAAAAEAAQAAADMgi63P7wCRHZnFVdmgHu2nFwlWCI3WGc3TSWhUFGxTAUkGCbtgENBMJAEJsxgMLWzpEAACH5BAkKAAAALAAAAAAQABAAAAMyCLrc/jDKSatlQtScKdceCAjDII7HcQ4EMTCpyrCuUBjCYRgHVtqlAiB1YhiCnlsRkAAAOwAAAAAAAAAAAA==');
-            background-repeat: no-repeat;
-            background-position: center;
-            background-size: 36px;
-            font-size: 36pt; text-align: center; content: "starting"; 
-        }
-        [v-cloak] > * {
-            Display: none
-        }
-    </style>
-</head>
-
-<body>
-    <div id="grids" style="padding: 25px 0 0 0" v-cloak>
-        <header>
-            <span class="header-component" v-show="isLoading" style="margin: 0px 0px 0px 5px">Loading... {{ progress }}%</span>
-            <button style="margin: 0px 0px 0px 200px" @click="loadStages"> open </button>
-            <button @click="saveStages" v-bind:disabled="!stageFile.set">  save  </button>
-            <input class="header-component" v-bind:value="stageFile.name" v-on:input="setStageFileName"></input>
-            <input class="header-component" v-bind:value="jumpToEpoch" v-on:change="setJumpToEpoch" type="number"></input>
-            <a href="#" v-scroll-to="'#epoch'+ (jumpToEpoch - 1).toString()">Jump</a>
-            <button @click="openSpecWindow">  spectrum  </button>
-            <button @click="openVideoWindow">  video  </button>
-        </header>
-        <one-page v-for="i in pageNum" :key="i" v-bind:filename="pages[i-1].filename" v-bind:start-stage-idx="pages[i-1].startStageIdx"></one-page>
-    </div>
-    <script src="https://cdn.jsdelivr.net/npm/vue@2.6.11"></script>
-    <script src="https://cdn.jsdelivr.net/npm/vue-scrollto@2.18.1"></script>
-    <script src="https://cdn.jsdelivr.net/npm/fflate/umd/index.js"></script>
-
-    <script>
-        const COLOR_WAKE='rgba(220, 38, 127, 0.3)'
-        const COLOR_NREM='rgba(100, 143, 255, 0.3)'
-        const COLOR_REM ='rgba(255, 176, 0, 0.3)'
-        const COLOR_UNKNOWN='rgba(105, 105, 105, 0.3)'
-        const COLOR_MARK='rgba(107, 142, 35, 0.3)'
-        const COLOR_NONE='transparent'
-
-        let moment = require('moment')
-        let {remote} = require('electron');
-        let {dialog} = remote;
-        let fs = require('fs');
-        let path = require('path');
-        let stringifySync = require("csv-stringify/lib/sync");
-        let parse = require('csv-parse/lib/sync');
-        let args = remote.getGlobal('sharedObject').args
-        let faster_dir = path.resolve(path.normalize(args[2]))
-        let device_id = args[3]
-        let stage_dir = path.join(faster_dir, "result")
-        let spec_win
-        let video_win
-
-        console.log('faster_dir: ' + faster_dir)
-        console.log('stage_dir:' + stage_dir)
-        const target_dir = path.normalize(path.join(faster_dir, "result", "figure", "voltage", device_id))
-        const signalViewJson = readSignalViewJson(target_dir)
-        const mes_len_sec = signalViewJson['mes_len_sec']
-        const epoch_len_sec = signalViewJson['epoch_len_sec']
-        const epochPerPage = signalViewJson['epoch_per_page']
-        const pageNum = mes_len_sec / epoch_len_sec / epochPerPage
-        const epoch_num_aday = 3600*24 / epoch_len_sec
-        const LoadingBar = window['LoadingBar'];
-
-        // prepare a list of files
-        let plotPages = [];
-        for (let i = 0; i < pageNum; i++) {
-            idx = (i * epochPerPage + 1).toString().padStart(6, '0')
-            day_idx = (Math.floor(idx / epoch_num_aday) + 1).toString().padStart(2, '0')
-            filename = path.normalize(path.join(faster_dir, "result", "figure","voltage", device_id, device_id + "_day" + day_idx + ".zip", device_id + "." + idx + ".jpg"))
-            filename = filename.replace(/\\/g, '/')
-            plotPages.push({
-                filename: filename,
-                startStageIdx: i*epochPerPage
-            });
-        }
-        console.log(plotPages)
-
-        // prepare a list of initial stage
-        let epochCells = [];
-        for (let i = 0; i < pageNum * epochPerPage; i++){
-            epochCells.push({idx:i, focus:false, stageNum:0}) // 0...not touched, 3...NREM, 4...Wake, 2...REM, 1...Unknown, 5...Mark
-        }
-
-        Vue.component('one-page', {
-            props: ['filename', 'startStageIdx'],
-            template: `
-            <div v-bind:id="'epoch'+startStageIdx" class="grid" v-bind:data-src="filename">
-                <button v-for="stage in $parent.epochCells.slice(startStageIdx, startStageIdx + epochPerPage)" 
-                    v-bind:style="{'background-color':$parent.bgColor(stage.stageNum) }" 
-                    style="position: relative; border-style: none"
-                    @focus="$parent.toggle_stage(stage.idx); $parent.seek_video(stage.idx)"
-                    @blur="$parent.unfocus(stage.idx)"
-                    @keydown.49="$parent.set_stage(stage.idx, 1)"
-                    @keydown.50="$parent.set_stage(stage.idx, 2)"
-                    @keydown.51="$parent.set_stage(stage.idx, 3)"
-                    @keydown.52="$parent.set_stage(stage.idx, 4)"
-                    @keydown.53="$parent.set_stage(stage.idx, 5)"
-                    @keydown.48="$parent.set_stage(stage.idx, 0)"
-                    @keydown.esc="$parent.set_stage(stage.idx, 0)"
-                    @mouseover="$parent.show_spectrum(stage.idx)"
-                    type="button">
-                    <stage-mask :stage-num="stage.stageNum"">
-                    </stage-mask>
-                </button>
-             </div>`
-        })
-
-        Vue.component('stage-mask',{
-            props: ['stageNum'],
-            template: `
-            <div class="stage-mask" v-if="stageNum===1">
-                U
-            </div>
-            <div class="stage-mask" v-else-if="stageNum===2">
-                R
-            </div>
-            <div class="stage-mask" v-else-if="stageNum===3">
-                N
-            </div>
-            <div class="stage-mask" v-else-if="stageNum===4">
-                W
-            </div>
-            <div class="stage-mask" v-else-if="stageNum===5">
-                M
-            </div>
-            `
-        })
-
-        const vm = new Vue({
-            el:"#grids",
-            data: {
-                pages: plotPages,
-                epochCells: epochCells,
-                stageFile: {set:false, name:"no stage file opened", dirPath:stage_dir},
-                jumpToEpoch: 1,
-                progress: 0,
-                loadingCounter: 0,
-                isLoading: true
-            },
-            methods: {
-                toggle_stage: function(idx) {
-                    i = Number(idx)
-                    if(this.epochCells[i].focus){
-                        this.epochCells[i].stageNum = (this.epochCells[i].stageNum + 1) % 4
-                        console.log('toggle:'+this.epochCells[i].stageNum + "@" + idx)
-                    }else{
-                        this.epochCells[i].focus = true
-                        console.log("set focus @" + idx)
-                    }
-                },
-                unfocus: function(idx){
-                    this.epochCells[i].focus = false
-                    console.log("unfocus @" + idx)
-                },
-                set_stage: function(idx, stageNum){
-                    
-                    this.epochCells[i].stageNum = Number(stageNum)
-                    console.log('set from: '+this.epochCells[i].stageNum + " to:" + stageNum +"@" + idx)
-                },
-                bgColor: function(stageNum) {
-                    if (stageNum == 1) {
-                        color = COLOR_UNKNOWN;
-                    } else if (stageNum == 2){
-                        color = COLOR_REM;
-                    } else if (stageNum == 3){
-                        color = COLOR_NREM;
-                    } else if (stageNum == 4){
-                        color = COLOR_WAKE;
-                    } else if (stageNum == 5){
-                        color = COLOR_MARK;
-                    } else {
-                        color = COLOR_NONE;
-                    }
-                    return color
-                },
-                show_spectrum: function(idx){
-                    page_str = (Math.floor(idx/1000)*1000 + 1).toString().padStart(6, '0')
-                    spec_plot_zippath = path.join(faster_dir, "result", "figure", "spectrum", device_id, page_str + '.zip')
-                    spec_plot_filename = device_id + "." + (idx + 1).toString().padStart(6, '0') + '.jpg'
-                    img_tag_src = spec_plot_filename
-                    img_tag_alt = spec_plot_filename
-                    fs.readFile(spec_plot_zippath, async function(err, data) {
-                        unzipped = fflate.unzipSync(data, {filter(file) {return file.name == spec_plot_filename}})
-                        imgData = unzipped[spec_plot_filename]
-                        blob = await (new Response(imgData)).blob();
-                        tmp_path =  URL.createObjectURL(blob);
-                        spec_win.postMessage(tmp_path)
-                        console.log("spectrum for " + idx)
-                    });
-
-                },
-                seek_video: function(idx){
-                    video_win.postMessage({'action':'seek', 'message':idx})
-                    console.log("video for " + idx)
-                },
-                loadStages() {
-                    remote.dialog.showOpenDialog(remote.getCurrentWindow(),
-                    {
-                        defaultPath: stage_dir,
-                        properties: ['openFile']
-                    }, (filepath) => { console.log('selected ' + filepath)}).then(result => {
-                        this.stageFile.dirPath = path.dirname(result.filePaths[0])
-                        this.stageFile.name = path.basename(result.filePaths[0])
-                        this.stageFile.set = false // to prevent unintentional overwrite
-
-                        stageFilePath = path.join(this.stageFile.dirPath, this.stageFile.name)
-                        let rec = readCsvSync(stageFilePath, {columns:false, from_line: 8});
-                        
-                        for (i = 0; i < Math.min(rec.length, epochCells.length); i++){
-                            stageLabel = rec[i][0].trim();
-                            if (stageLabel === '-'){
-                                sn = 0;
-                            }else if (stageLabel === 'Unknown'){
-                                sn = 1;
-                            }else if (stageLabel === 'REM'){
-                                sn = 2;
-                            }else if (stageLabel === 'NREM'){
-                                sn = 3;
-                            }else if (stageLabel === 'Wake'){
-                                sn = 4;
-                            }else if (stageLabel === 'Mark'){
-                                sn = 5;
-                            }else{
-                                sn = 0;
-                            }
-                            this.epochCells[i].stageNum = sn
-                        }
-                        console.log(epochCells)
-                    });
-                },
-                setStageFileName(e) {
-                    filename = e.target.value
-                    if (typeof filename == "string"){
-                        this.stageFile.name = filename
-                        this.stageFile.set = true
-                    }
-                },
-                setJumpToEpoch(e) {
-                    this.jumpToEpoch = Math.floor((Math.max(e.target.value,1)-1) / epochPerPage) * epochPerPage + 1
-                },
-                saveStages() {
-                    stageTable = [];
-                    for (i = 0; i < this.epochCells.length; i++) {
-                        stageNum = this.epochCells[i].stageNum;
-                        if (stageNum == 1) {
-                            stageLabel = "Unknown";
-                        } else if (stageNum == 2) {
-                            stageLabel = "REM";
-                        } else if (stageNum == 3) {
-                            stageLabel = "NREM";
-                        } else if (stageNum == 4) {
-                            stageLabel = "Wake";
-                        } else if (stageNum == 5) {
-                            stageLabel = "Mark";
-                        } else {
-                            stageLabel = "-";
-                        }
-                        stageTable.push({ stage: stageLabel })
-                    }
-                    csvString = stringifySync(stageTable, {
-                        header: false,
-                        quoted_string: false
-                    });
-
-                    nowStr = moment().format("YYYY-MM-DD HH:mm:ss")
-                    commentStr = 
-                    "# Staged by manual inspection of \n"  +
-                    "# " + faster_dir + ",\n" +
-                    "# recorded with: \n" +
-                    "# " + device_id + "\n" +
-                    "#\n" +
-                    "#\n" +
-                    "# saved at " + nowStr + "\n"
-                    "Stage\n"
-                    stageFilePath = path.join(this.stageFile.dirPath, this.stageFile.name)
-                    console.log('stage saved at: ' + stageFilePath)
-                    fs.writeFileSync(stageFilePath, commentStr)
-                    fs.appendFileSync(stageFilePath, csvString)
-
-                    remote.dialog.showMessageBox(remote.getCurrentWindow(), {
-                        buttons: ["OK"],
-                        message: 'stage saved at: ' + stageFilePath
-                    }, null)
-                },
-                openSpecWindow(){
-                    spec_win = window.open("spectrum.html", "spectrum", "width=1200,height=400,top=500,left=10");
-                },
-                openVideoWindow(){
-                    video_win = window.open("video.html", "video", "width=380,height=400,top=500,left=1200");
-                },
-                progressTo(val){
-                    this.progress = val.toFixed(1)
-                },
-                progressDone(){
-                    this.isLoading = false
-                },
-                extractZippedImage(){
-                    // Extract zip files
-                    const zipFiles = {};
-                    for (const div of document.querySelectorAll('div.grid')) {
-                        const fullStyle = div.getAttribute('data-src');
-                        // Finds the filepath of what to extract
-                        const fnInd = fullStyle.indexOf('.zip/') + 4;
-                        const fnIdd_e = fullStyle.indexOf('.jpg') + 4
-                        if (fnInd == 3) throw new Error(`Invalid data-src "${fullStyle}"`);
-                        
-                        const zipURL = fullStyle.slice(0, fnInd);
-                        const filepath = fullStyle.slice(fnInd + 1, fnIdd_e);
-                        if (!zipFiles[zipURL]) zipFiles[zipURL] = {};
-                        // Stores ZIP URLs, filepaths, and elements together
-                        zipFiles[zipURL][filepath] = div;
-                    }
-                    for (const zipURL in zipFiles) {
-                        const filepaths = zipFiles[zipURL];
-                        let counter = 0
-                        // Download the ZIP
-                        fetch(zipURL).then(async res => {
-                            // unzip logic
-                            const unzipper = new fflate.Unzip(async file => {
-                                const imgStream = new ReadableStream({
-                                start(controller) {
-                                    file.ondata = (err, chunk, final) => {
-                                    if (err) controller.error(err);
-                                    else {
-                                        controller.enqueue(chunk);
-                                        if (final) controller.close();
-                                    }
-                                    }
-                                    file.start();
-                                },
-                                cancel() {
-                                    file.terminate();
-                                }
-                                });
-                                // Create a blob from the stream
-                                const blob = await (new Response(imgStream)).blob();
-                                // Use a blob URL as the source
-                                // console.log(file.name);
-                                if (file.name in filepaths) {
-                                    this.loadingCounter++;
-                                    tmp_path =  URL.createObjectURL(blob)
-                                    filepaths[file.name].style.background = "url(" + tmp_path + ") center top/cover no-repeat";
-                                    this.progressTo(100*this.loadingCounter/pageNum)
-                                    if (this.loadingCounter == pageNum){
-                                        this.progressDone()
-                                    }
-                                };
-                            });
-                            unzipper.register(fflate.UnzipInflate);
-                            // Manually push each chunk in the ZIP stream through fflate
-                            const reader = res.body.getReader();
-                            while (true) {
-                            const { done, value } = await reader.read();
-                            if (done) {
-                                // last chunk is empty
-                                unzipper.push(new Uint8Array(0), true);
-                                break;
-                            };
-                            unzipper.push(value);
-                            }
-                        });
-                    }
-                }
-            },
-            mounted(){
-                this.extractZippedImage()
-                this.openSpecWindow()
-                this.openVideoWindow()
+    <head>
+        <meta charset="UTF-8">
+            <!-- https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP -->
+        <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net; img-src data: blob:;">
+        <style>
+            header {
+                position: fixed; 
+                top: 0; 
+                width: 100%; 
+                z-index:1; 
+                background-color: rgba(0, 0, 0, 0.6);
             }
-        })
+            .header-component {
+                z-index:1;
+                background-color: rgba(255, 255, 255, 0.6);
+            }
+            .grid {
+                display: grid;
+                grid-gap: 2px;
+                background-repeat: no-repeat;
+                min-width: 1600px;
+                min-height: 1200px;
+                width: 100%;
+                height: 100%;
+         
+                grid-template-rows: repeat(5, 1fr);
+            }
+            .stage-mask{
+                font-size: 36pt;
+                font-family: 'arial unicode ms';
+                font-weight: bold;
+                /* position: absolute;  */
+                text-align: center;
+                /* top: 35%; 
+                left: 37%;  */
+            }
+            .epochButton:focus {
+                outline: 2px solid rgb(255, 171, 45);
+            }
+            [v-cloak]::before {
+                display: block;
+                margin-top: 100px;
+                margin-left: auto;
+                margin-right: auto;
+                padding-bottom: 100px;
+                background-image: url('data:image/gif;base64,R0lGODlhEAAQAPIAAP///wAAAMLCwkJCQgAAAGJiYoKCgpKSkiH/C05FVFNDQVBFMi4wAwEAAAAh/hpDcmVhdGVkIHdpdGggYWpheGxvYWQuaW5mbwAh+QQJCgAAACwAAAAAEAAQAAADMwi63P4wyklrE2MIOggZnAdOmGYJRbExwroUmcG2LmDEwnHQLVsYOd2mBzkYDAdKa+dIAAAh+QQJCgAAACwAAAAAEAAQAAADNAi63P5OjCEgG4QMu7DmikRxQlFUYDEZIGBMRVsaqHwctXXf7WEYB4Ag1xjihkMZsiUkKhIAIfkECQoAAAAsAAAAABAAEAAAAzYIujIjK8pByJDMlFYvBoVjHA70GU7xSUJhmKtwHPAKzLO9HMaoKwJZ7Rf8AYPDDzKpZBqfvwQAIfkECQoAAAAsAAAAABAAEAAAAzMIumIlK8oyhpHsnFZfhYumCYUhDAQxRIdhHBGqRoKw0R8DYlJd8z0fMDgsGo/IpHI5TAAAIfkECQoAAAAsAAAAABAAEAAAAzIIunInK0rnZBTwGPNMgQwmdsNgXGJUlIWEuR5oWUIpz8pAEAMe6TwfwyYsGo/IpFKSAAAh+QQJCgAAACwAAAAAEAAQAAADMwi6IMKQORfjdOe82p4wGccc4CEuQradylesojEMBgsUc2G7sDX3lQGBMLAJibufbSlKAAAh+QQJCgAAACwAAAAAEAAQAAADMgi63P7wCRHZnFVdmgHu2nFwlWCI3WGc3TSWhUFGxTAUkGCbtgENBMJAEJsxgMLWzpEAACH5BAkKAAAALAAAAAAQABAAAAMyCLrc/jDKSatlQtScKdceCAjDII7HcQ4EMTCpyrCuUBjCYRgHVtqlAiB1YhiCnlsRkAAAOwAAAAAAAAAAAA==');
+                background-repeat: no-repeat;
+                background-position: center;
+                background-size: 36px;
+                font-size: 36pt; text-align: center; content: "starting"; 
+            }
+            [v-cloak] > * {
+                Display: none
+            }
+        </style>
+    </head>
+    <body>
+        <div id="grids" style="padding: 25px 0 0 0" v-cloak>
+            <header>
+                <span class="header-component" v-show="isLoading" style="margin: 0px 0px 0px 5px">Loading... {{ progress }}%</span>
+                <button style="margin: 0px 0px 0px 200px" @click="loadStages"> open </button>
+                <button @click="saveStages" v-bind:disabled="!stageFile.set">  save  </button>
+                <input class="header-component" v-bind:value="stageFile.name" v-on:input="setStageFileName"></input>
+                <input class="header-component" v-bind:value="jumpToEpoch" v-on:change="setJumpToEpoch" type="number"></input>
+                <a href="#" v-scroll-to="'#epoch'+ (jumpToEpoch - 1).toString()">Jump</a>
+                <button @click="openSpecWindow">  spectrum  </button>
+                <button @click="openVideoWindow">  video  </button>
+            </header>
+            <one-page v-for="i in pageNum" :key="i" v-bind:filename="pages[i-1].filename" v-bind:start-stage-idx="pages[i-1].startStageIdx"></one-page>
+        </div>
+        <script src="https://cdn.jsdelivr.net/npm/vue@2.6.11"></script>
+        <script src="https://cdn.jsdelivr.net/npm/vue-scrollto@2.18.1"></script>
 
-        function readCsvSync(filename, options) {
-            const content = fs.readFileSync(filename).toString();
-            return parse(content, options);
-        }
+        <script>
+            const COLOR_WAKE='rgba(220, 38, 127, 0.3)'
+            const COLOR_NREM='rgba(100, 143, 255, 0.3)'
+            const COLOR_REM ='rgba(255, 176, 0, 0.3)'
+            const COLOR_UNKNOWN='rgba(105, 105, 105, 0.3)'
+            const COLOR_MARK='rgba(107, 142, 35, 0.3)'
+            const COLOR_NONE='transparent'
+            let video_win
+            
+            window.api.requestBasicInfo().then((basicInfo)=>{
+                console.log(basicInfo)
 
-        function readSignalViewJson(tagert_dir){
-            const jsonObject = JSON.parse(fs.readFileSync(path.join(target_dir, 'signal_view.json'), 'utf8'));
-            return jsonObject
-        }
-    </script>
-</body>
+                const mes_len_sec = basicInfo['mes_len_sec']
+                const epoch_len_sec = basicInfo['epoch_len_sec']
+                const epochPerPage = basicInfo['epoch_per_page']
+                const plotPages = basicInfo['plot_pages']
+                const deviceId = basicInfo['device_id']
+                const pageNum = mes_len_sec / epoch_len_sec / epochPerPage
+                const epoch_num_aday = 3600*24 / epoch_len_sec
 
+                // prepare a list of initial stage
+                const epoch_idx =  Array.from(Array(pageNum * epochPerPage).keys())
+                let epochCells = epoch_idx.map(i => {
+                    return {'idx':i, 'focus':false, 'stageNum':0}
+                });
+
+                Vue.component('one-page', {
+                    props: ['filename', 'startStageIdx'],
+                    template: `
+                    <div v-bind:id="'epoch'+startStageIdx" class="grid" v-bind:data-src="filename">
+                        <button v-for="stage in $parent.epochCells.slice(startStageIdx, startStageIdx + $parent.epochPerPage)" 
+                            v-bind:style="{'background-color':$parent.bgColor(stage.stageNum) }" 
+                            style="position: relative; border-style: none;"
+                            @focus="$parent.showSpectrum(stage.idx); $parent.seek_video(stage.idx);"
+                            @blur="$parent.unfocus(stage.idx)"
+                            @keydown.49="$parent.set_stage(stage.idx, 1)"
+                            @keydown.50="$parent.set_stage(stage.idx, 2)"
+                            @keydown.51="$parent.set_stage(stage.idx, 3)"
+                            @keydown.52="$parent.set_stage(stage.idx, 4)"
+                            @keydown.53="$parent.set_stage(stage.idx, 5)"
+                            @keydown.48="$parent.set_stage(stage.idx, 0)"
+                            @keydown.esc="$parent.set_stage(stage.idx, 0)"
+                            type="button" class="epochButton">
+                            <stage-mask :stage-num="stage.stageNum">
+                            </stage-mask>
+                        </button>
+                    </div>`
+                })    
+
+        
+                Vue.component('stage-mask',{
+                    props: ['stageNum'],
+                    template: `
+                    <div class="stage-mask" v-if="stageNum===1">
+                        U
+                    </div>
+                    <div class="stage-mask" v-else-if="stageNum===2">
+                        R
+                    </div>
+                    <div class="stage-mask" v-else-if="stageNum===3">
+                        N
+                    </div>
+                    <div class="stage-mask" v-else-if="stageNum===4">
+                        W
+                    </div>
+                    <div class="stage-mask" v-else-if="stageNum===5">
+                        M
+                    </div>
+                    `
+                })
+        
+                const vm = new Vue({
+                    el:"#grids",
+                    data: {
+                        pages: plotPages,
+                        pageNum: pageNum,
+                        epochPerPage: epochPerPage,
+                        epochCells: epochCells,
+                        stageFile: {set:false, name:"no stage file opened"},
+                        jumpToEpoch: 1,
+                        progress: 0,
+                        loadingCounter: 0,
+                        specPage: 0,
+                        specImages: null,
+                        isLoading: true
+                    },
+                    methods: {
+                        unfocus: function(idx){
+                            i = Number(idx)
+        
+                            this.epochCells[i].focus = false
+                            console.log("unfocus @" + idx)
+                        },
+                        set_stage: function(idx, stageNum){
+                            i = Number(idx)
+                            
+                            this.epochCells[i].stageNum = Number(stageNum)
+                            console.log('set from: '+this.epochCells[i].stageNum + " to:" + stageNum +"@" + idx)
+                        },
+                        bgColor: function(stageNum) {
+                            if (stageNum == 1) {
+                                color = COLOR_UNKNOWN;
+                            } else if (stageNum == 2){
+                                color = COLOR_REM;
+                            } else if (stageNum == 3){
+                                color = COLOR_NREM;
+                            } else if (stageNum == 4){
+                                color = COLOR_WAKE;
+                            } else if (stageNum == 5){
+                                color = COLOR_MARK;
+                            } else {
+                                color = COLOR_NONE;
+                            }
+                            return color
+                        },
+                        updateSpectrum: async function(idx) {
+                            specPlotFilename = deviceId + "." + (idx + 1).toString().padStart(6, '0') + '.jpg'
+                            imgData = this.specImages[specPlotFilename]
+                            blob = await (new Response(imgData)).blob();
+                            tmp_path =  URL.createObjectURL(blob);
+                            spec_win.postMessage(tmp_path)
+                        },
+                        showSpectrum: function(idx){
+                            let specPage = Math.floor(idx/1000)*1000 + 1
+                            // Unzip plots when the page changed
+                            if (this.specPage != specPage) {
+                                this.specPage = specPage
+                                window.api.unzipSpecPlot(specPage).then(async (unzipped) => {
+                                    this.specImages = unzipped
+                                    this.updateSpectrum(idx)
+                                })
+                            }else{
+                                this.updateSpectrum(idx)
+                            }
+                        },
+                        seek_video: function(idx){
+                            video_win.postMessage({'action':'seek', 'message':idx})
+                            console.log("video for " + idx)
+                        },
+                        loadStages() {
+                            remote.dialog.showOpenDialog(remote.getCurrentWindow(),
+                            {
+                                defaultPath: stage_dir,
+                                properties: ['openFile']
+                            }, (filepath) => { console.log('selected ' + filepath)}).then(result => {
+                                this.stageFile.dirPath = path.dirname(result.filePaths[0])
+                                this.stageFile.name = path.basename(result.filePaths[0])
+                                this.stageFile.set = false // to prevent unintentional overwrite
+        
+                                stageFilePath = path.join(this.stageFile.dirPath, this.stageFile.name)
+                                let rec = readCsvSync(stageFilePath, {columns:false, from_line: 8});
+                                
+                                for (i = 0; i < Math.min(rec.length, epochCells.length); i++){
+                                    stageLabel = rec[i][0].trim();
+                                    if (stageLabel === '-'){
+                                        sn = 0;
+                                    }else if (stageLabel === 'Unknown'){
+                                        sn = 1;
+                                    }else if (stageLabel === 'REM'){
+                                        sn = 2;
+                                    }else if (stageLabel === 'NREM'){
+                                        sn = 3;
+                                    }else if (stageLabel === 'Wake'){
+                                        sn = 4;
+                                    }else if (stageLabel === 'Mark'){
+                                        sn = 5;
+                                    }else{
+                                        sn = 0;
+                                    }
+                                    this.epochCells[i].stageNum = sn
+                                }
+                                console.log(epochCells)
+                            });
+                        },
+                        setStageFileName(e) {
+                            filename = e.target.value
+                            if (typeof filename == "string"){
+                                this.stageFile.name = filename
+                                this.stageFile.set = true
+                            }
+                        },
+                        setJumpToEpoch(e) {
+                            this.jumpToEpoch = Math.floor((Math.max(e.target.value,1)-1) / epochPerPage) * epochPerPage + 1
+                        },
+                        saveStages() {
+                            stageTable = [];
+                            for (i = 0; i < this.epochCells.length; i++) {
+                                stageNum = this.epochCells[i].stageNum;
+                                if (stageNum == 1) {
+                                    stageLabel = "Unknown";
+                                } else if (stageNum == 2) {
+                                    stageLabel = "REM";
+                                } else if (stageNum == 3) {
+                                    stageLabel = "NREM";
+                                } else if (stageNum == 4) {
+                                    stageLabel = "Wake";
+                                } else if (stageNum == 5) {
+                                    stageLabel = "Mark";
+                                } else {
+                                    stageLabel = "-";
+                                }
+                                stageTable.push({ stage: stageLabel })
+                            }
+                            csvString = stringifySync(stageTable, {
+                                header: false,
+                                quoted_string: false
+                            });
+        
+                            nowStr = moment().format("YYYY-MM-DD HH:mm:ss")
+                            commentStr = 
+                            "# Staged by manual inspection of \n"  +
+                            "# " + faster_dir + ",\n" +
+                            "# recorded with: \n" +
+                            "# " + device_id + "\n" +
+                            "#\n" +
+                            "#\n" +
+                            "# saved at " + nowStr + "\n"
+                            "Stage\n"
+                            stageFilePath = path.join(this.stageFile.dirPath, this.stageFile.name)
+                            console.log('stage saved at: ' + stageFilePath)
+                            fs.writeFileSync(stageFilePath, commentStr)
+                            fs.appendFileSync(stageFilePath, csvString)
+        
+                            remote.dialog.showMessageBox(remote.getCurrentWindow(), {
+                                buttons: ["OK"],
+                                message: 'stage saved at: ' + stageFilePath
+                            }, null)
+                        },
+                        openSpecWindow(){
+                            spec_win = window.open("spectrum.html", "spectrum", "width=1200,height=400,top=500,left=10");
+                        },
+                        openVideoWindow(){
+                            video_win = window.open("video.html", "video", "width=380,height=400,top=500,left=1200");
+                        },
+                        progressTo(val){
+                            this.progress = val.toFixed(1)
+                        },
+                        progressDone(){
+                            this.isLoading = false
+                        },
+                        extractZippedImage(){
+                            const zipFiles = {};
+                            // The div.grid has the filepath information
+                            for (const div of document.querySelectorAll('div.grid')) {
+                                const fullStyle = div.getAttribute('data-src');
+                                // Finds the filepath of what to extract
+                                const fnInd = fullStyle.indexOf('.zip/') + 4;
+                                const fnIdd_e = fullStyle.indexOf('.jpg') + 4
+                                if (fnInd == 3) throw new Error(`Invalid data-src "${fullStyle}"`);
+                                
+                                const zipURL = fullStyle.slice(0, fnInd);
+                                const filepath = fullStyle.slice(fnInd + 1, fnIdd_e);
+                                if (!zipFiles[zipURL]) zipFiles[zipURL] = {};
+                                // Stores ZIP URLs, filepaths, and elements together
+                                zipFiles[zipURL][filepath] = div;
+                            }
+                            for (const zipURL in zipFiles) {
+                                const filepaths = zipFiles[zipURL];
+                                let counter = 0
+                                // Ask the main process for UNZIP
+                                window.api.unzip(zipURL).then(async (unzipped) => {
+                                    Object.entries(unzipped).map( async ([filename, imgData]) => {
+                                        // make the blob from the image data
+                                        const blob = await (new Response(imgData)).blob();
+                                        // make a temporary URL for the blob
+                                        tmp_path =  URL.createObjectURL(blob)
+                                        filepaths[filename].style.background = "url(" + tmp_path + ") center top/cover no-repeat";
+                                        // update the progress indicator
+                                        this.loadingCounter++
+                                        // Reduce the cost of updating counter
+                                        if ((this.loadingCounter % 10) == 0) {
+                                            this.progressTo(100*this.loadingCounter/pageNum)
+                                        }
+                                        if (this.loadingCounter == pageNum){
+                                            this.progressDone()
+                                        }
+                                    })
+                                })
+                            }
+                        },
+                        setGridColumn(){
+                            // set the grid column
+                            const grid_elements = document.getElementsByClassName('grid');
+                            for(const ge of grid_elements){
+                                ge.style.gridTemplateColumns="repeat("+epochPerPage/5+", 1fr)"
+                            }
+                        }
+                    },
+                    mounted(){
+                        this.extractZippedImage()
+                        this.setGridColumn()
+                        this.openSpecWindow()
+                        this.openVideoWindow()
+                    }
+                })
+            })
+        </script>
+    </body>
 </html>
