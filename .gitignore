@@ -107,3 +107,4 @@ dist
 video/
 hoge*
 yarn.lock
+old_code
