@@ -124,21 +124,25 @@ app.on('window-all-closed', () => {
 
 
 ipcMain.handle('requestBasicInfo', () => {
-    setBasicInfo()
+    try {
+        setBasicInfo()
 
-    // prepare a list of voltage plot files
-    const pageIdx =  Array.from(Array(pageNum).keys())
-    const plotPages = pageIdx.map(i => {
-        let idx = (i * epochPerPage + 1).toString().padStart(6, '0')
-        let dayIdx = (Math.floor(i * epochPerPage / epochNumAday) + 1).toString().padStart(2, '0')
-        let filename = path.normalize(path.join(plotDir.voltPlot_dir, deviceId + "_day" + dayIdx + ".zip", deviceId + "." + idx + ".jpg"))
-        filename = filename.replace(/\\/g, '/')
-        return {'filename':filename, 'startStageIdx':i * epochPerPage}
-    });
+        // prepare a list of voltage plot files
+        const pageIdx =  Array.from(Array(pageNum).keys())
+        const plotPages = pageIdx.map(i => {
+            let idx = (i * epochPerPage + 1).toString().padStart(6, '0')
+            let dayIdx = (Math.floor(i * epochPerPage / epochNumAday) + 1).toString().padStart(2, '0')
+            let filename = path.normalize(path.join(plotDir.voltPlot_dir, deviceId + "_day" + dayIdx + ".zip", deviceId + "." + idx + ".jpg"))
+            filename = filename.replace(/\\/g, '/')
+            return {'filename':filename, 'startStageIdx':i * epochPerPage}
+        });
 
-    basicInfo['plot_pages'] = plotPages
-    basicInfo['device_id'] = deviceId
-
+        basicInfo['plot_pages'] = plotPages
+        basicInfo['device_id'] = deviceId
+    } catch (err){
+        dialog.showErrorBox("Error in basic information", err.message)
+        app.quit()
+    }
     return basicInfo
 })
 
@@ -248,6 +252,10 @@ ipcMain.handle("saveVideoInfo", ()=>{
         quoted_string: false
     });
     fs.writeFileSync(videoInfoPath, csvString)
+    dialog.showMessageBox({
+        buttons: ["OK"],
+        message: 'video info saved at: ' + videoInfoPath
+    }, null)
 })
 
 
