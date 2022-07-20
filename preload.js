@@ -33,6 +33,12 @@ contextBridge.exposeInMainWorld('api', {
   },
   saveVideoInfo: async () => {
     return await ipcRenderer.invoke("saveVideoInfo")
+  },
+  loadStages: async (epochCells) => {
+    return await ipcRenderer.invoke("loadStages", epochCells)
+  },
+  saveStages: async (epochCells, stageFile) => {
+    return await ipcRenderer.invoke("saveStages", epochCells, stageFile)
   }
 })
 

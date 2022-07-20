@@ -1,9 +1,22 @@
 <html>
+    <head>
+        <style>
+        #mouseVideo {
+            position: relative;
+        }
+        #offsetCtrl {
+            position: absolute;
+        }
+        </style>
+    </head>
     <body>
         <div id="app">
             <video id="mouseVideo" ref="mouseVideo" controls v-if="src" muted :src="src" :height="videoHeight" :width="videoWidth" @loadeddata="seekVideoToCurrentEpochIdx"></video>
-            <span>offset [sec]</span><input v-bind:value="videoOffset" v-on:input="setVideoOffset" type="number"></input>
+            <br/>
+            <div id="offsetCtrl">
+            <span> offset [sec]</span><input v-bind:value="videoOffset" v-on:input="setVideoOffset" type="number"></input>
             <button @click="saveVideoInfo">  save  </button>
+            </div>
         </div>
         <script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
 
@@ -58,8 +71,8 @@
                         }
                     },
                     handleResize: function () {
-                        this.videoHeight = window.innerHeight;
-                        this.videoWidth = window.innerWidth;
+                        this.videoHeight = window.innerHeight*0.9;
+                        this.videoWidth = window.innerWidth*0.95;
                     },
                     setVideoOffset: function(e){
                         let offset = parseFloat(e.target.value)

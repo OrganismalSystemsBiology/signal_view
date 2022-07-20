@@ -1,4 +1,4 @@
-const { app, BrowserWindow, dialog, ipcMain } = require('electron')
+const { app, BrowserWindow, Menu, dialog, ipcMain } = require('electron')
 const path = require('path')
 const fs = require('fs');
 const fflate = require('fflate')
@@ -6,26 +6,42 @@ const { parse } = require('csv-parse/sync');
 const { stringify } = require('csv-stringify/sync')
 const dayjs = require('dayjs')
 
-app.commandLine.appendSwitch('js-flags', '--max-old-space-size=16384');
+app.commandLine.appendSwitch('js-flags', '--max-old-space-size=32768');
+
+// Menu bar を非表示
+Menu.setApplicationMenu(null);
 
 let win;
 let fasterDir
+let stageDir
 let deviceId
 let plotDir
 let basicInfo
 let mesLenSec
 let epochLenSec
 let epochPerPage
+let pageNum
+let epochNumAday
 let videoInfoPath
 let videoInfo
 let epochVideoList
 
+
 function setBasicInfo() {
     basicInfo = JSON.parse(fs.readFileSync(path.join(plotDir.voltPlot_dir, 'signal_view.json'), 'utf8'));
+    
+    // Basic info from the file
     mesLenSec = basicInfo['mes_len_sec']
     epochLenSec = basicInfo['epoch_len_sec']
     epochPerPage = basicInfo['epoch_per_page']
+    
+    // Add the computed basic info
+    pageNum = mesLenSec / epochLenSec / epochPerPage
+    epochNumAday = 3600*24 / epochLenSec
+    basicInfo['page_num'] = pageNum
+    basicInfo['epoch_num_aday'] = epochNumAday
 }
+
 
 function getPlotDir() {
     return new Promise((resolve, reject) => {
@@ -45,6 +61,7 @@ function getPlotDir() {
             deviceId = process.argv[3]
         }
         fasterDir = path.resolve(path.normalize(fasterDir))
+        stageDir = path.join(fasterDir, 'result')
         voltPlotDir =  path.join(fasterDir, 'result', 'figure', 'voltage', deviceId)
         specPlotDir = path.join(fasterDir, 'result', 'figure', 'spectrum', deviceId)
         resolve({
@@ -54,6 +71,7 @@ function getPlotDir() {
             'specPlot_dir': specPlotDir})
     })
 }
+
 
 function createWindow() {
     win = new BrowserWindow({
@@ -77,13 +95,16 @@ function createWindow() {
     win.setPosition(0, 0)
 
     win.loadFile('signal_view.html')
-    win.webContents.openDevTools()
+    // 開発ツールを表示
+    //win.webContents.openDevTools()
 }
+
 
 function readCsvSync(filename, options) {
     const content = fs.readFileSync(filename).toString();
     return parse(content, options);
 }
+
 
 // Initialize the window
 app.whenReady().then(() => {
@@ -95,31 +116,32 @@ app.whenReady().then(() => {
       })
 })
 
+
 app.on('window-all-closed', () => {
     // macOS continues to run the app after all windows are closed
     if (process.platform !== 'darwin') app.quit()
 })
 
+
 ipcMain.handle('requestBasicInfo', () => {
     setBasicInfo()
-    const pageNum = mesLenSec / epochLenSec / epochPerPage
-    const epoch_num_aday = 3600*24 / epochLenSec
 
-    // prepare a list of files
-    const page_idx =  Array.from(Array(pageNum).keys())
-    const plotPages = page_idx.map(i => {
+    // prepare a list of voltage plot files
+    const pageIdx =  Array.from(Array(pageNum).keys())
+    const plotPages = pageIdx.map(i => {
         let idx = (i * epochPerPage + 1).toString().padStart(6, '0')
-        let dayIdx = (Math.floor(i * epochPerPage / epoch_num_aday) + 1).toString().padStart(2, '0')
+        let dayIdx = (Math.floor(i * epochPerPage / epochNumAday) + 1).toString().padStart(2, '0')
         let filename = path.normalize(path.join(plotDir.voltPlot_dir, deviceId + "_day" + dayIdx + ".zip", deviceId + "." + idx + ".jpg"))
         filename = filename.replace(/\\/g, '/')
         return {'filename':filename, 'startStageIdx':i * epochPerPage}
     });
 
-    basicInfo.plot_pages = plotPages
-    basicInfo.device_id = deviceId
+    basicInfo['plot_pages'] = plotPages
+    basicInfo['device_id'] = deviceId
 
     return basicInfo
 })
+
 
 ipcMain.handle('unzip', (event, zipUrl) => {
     console.log('Unzipping', zipUrl)
@@ -199,6 +221,7 @@ ipcMain.handle('requestEpochVideoList', () =>{
     return epochVideoList
 })
 
+
 ipcMain.handle("requestVideoOffset", (event, videoIdx) => {
     return videoInfo[videoIdx]['offset']
 })
@@ -225,4 +248,88 @@ ipcMain.handle("saveVideoInfo", ()=>{
         quoted_string: false
     });
     fs.writeFileSync(videoInfoPath, csvString)
+})
+
+
+ipcMain.handle("loadStages", (event, epochCells)=>{
+    res = dialog.showOpenDialog({
+        defaultPath: stageDir,
+        properties: ['openFile']
+    }).then((result) => {
+        let stageFile = {}
+        stageFile.dirPath = path.dirname(result.filePaths[0])
+        stageFile.name = path.basename(result.filePaths[0])
+        stageFile.set = false // to prevent unintentional overwrite
+
+        stageFilePath = path.join(stageFile.dirPath, stageFile.name)
+        let rec = readCsvSync(stageFilePath, {columns:false, from_line: 8});
+        
+        for (i = 0; i < Math.min(rec.length, epochCells.length); i++){
+            stageLabel = rec[i][0].trim();
+            if (stageLabel === '-'){
+                sn = 0;
+            }else if (stageLabel === 'Unknown'){
+                sn = 1;
+            }else if (stageLabel === 'REM'){
+                sn = 2;
+            }else if (stageLabel === 'NREM'){
+                sn = 3;
+            }else if (stageLabel === 'Wake'){
+                sn = 4;
+            }else if (stageLabel === 'Mark'){
+                sn = 5;
+            }else{
+                sn = 0;
+            }
+            epochCells[i].stageNum = sn
+        }
+        return {'epoch_cells': epochCells, 'stage_file':stageFile}
+    })
+    return res
+})
+
+
+ipcMain.handle('saveStages', (event, epochCells, stageFile)=>{
+    let stageTable = [];
+    for (i = 0; i < epochCells.length; i++) {
+        let stageNum = epochCells[i].stageNum;
+        if (stageNum == 1) {
+            stageLabel = "Unknown";
+        } else if (stageNum == 2) {
+            stageLabel = "REM";
+        } else if (stageNum == 3) {
+            stageLabel = "NREM";
+        } else if (stageNum == 4) {
+            stageLabel = "Wake";
+        } else if (stageNum == 5) {
+            stageLabel = "Mark";
+        } else {
+            stageLabel = "-";
+        }
+        stageTable.push({ stage: stageLabel })
+    }
+    csvString = stringify(stageTable, {
+        header: false,
+        quoted_string: false
+    });
+
+    nowStr = dayjs().format("YYYY-MM-DD HH:mm:ss")
+    commentStr = 
+    "# Staged by manual inspection of \n"  +
+    "# " + fasterDir + ",\n" +
+    "# recorded with: \n" +
+    "# " + deviceId + "\n" +
+    "#\n" +
+    "#\n" +
+    "# saved at " + nowStr + "\n"
+    "Stage\n"
+    stageFilePath = path.join(stageDir, stageFile.name)
+    console.log('stage saved at: ' + stageFilePath)
+    fs.writeFileSync(stageFilePath, commentStr)
+    fs.appendFileSync(stageFilePath, csvString)
+
+    dialog.showMessageBox({
+        buttons: ["OK"],
+        message: 'stage saved at: ' + stageFilePath
+    }, null)
 })
