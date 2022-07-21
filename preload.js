@@ -16,8 +16,8 @@ contextBridge.exposeInMainWorld('api', {
   requestBasicInfo: async () => {
     return await ipcRenderer.invoke("requestBasicInfo")
   },
-  unzip: async (zipUrl) => {
-    return await ipcRenderer.invoke("unzip", zipUrl)
+  unzipVoltPlot: async (zipUrl) => {
+    return await ipcRenderer.invoke("unzipVoltPlot", zipUrl)
   },
   unzipSpecPlot: async (specPage) => {
     return await ipcRenderer.invoke("unzipSpecPlot", specPage)

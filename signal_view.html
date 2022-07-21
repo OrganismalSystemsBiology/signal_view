@@ -262,7 +262,7 @@
                                 const filepaths = zipFiles[zipURL];
                                 let counter = 0
                                 // Ask the main process for UNZIP
-                                window.api.unzip(zipURL).then(async (unzipped) => {
+                                window.api.unzipVoltPlot(zipURL).then(async (unzipped) => {
                                     Object.entries(unzipped).map( async ([filename, imgData]) => {
                                         // make the blob from the image data
                                         const blob = await (new Response(imgData)).blob();

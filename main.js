@@ -86,11 +86,7 @@ function createWindow() {
     // Obtain the path of the target voltage plot directory
     getPlotDir().then((res) => {
             plotDir = res
-        }).catch((err) => {
-            console.log(err)
-            win.close()
-            return
-        })
+    })
 
     win.setPosition(0, 0)
 
@@ -147,8 +143,7 @@ ipcMain.handle('requestBasicInfo', () => {
 })
 
 
-ipcMain.handle('unzip', (event, zipUrl) => {
-    console.log('Unzipping', zipUrl)
+ipcMain.handle('unzipVoltPlot', (event, zipUrl) => {
     const buf = new Uint8Array(fs.readFileSync(zipUrl).buffer)
     return fflate.unzipSync(buf);
 })
@@ -157,7 +152,6 @@ ipcMain.handle('unzip', (event, zipUrl) => {
 ipcMain.handle('unzipSpecPlot', (event, specPage) => {
     pageStr = specPage.toString().padStart(6, '0')
     specPlotZippath = path.normalize(path.join(plotDir.specPlot_dir, pageStr + '.zip'))
-    console.log('Unzipping', specPlotZippath)
     const buf = new Uint8Array(fs.readFileSync(specPlotZippath).buffer)
     return fflate.unzipSync(buf);
 })
@@ -233,7 +227,6 @@ ipcMain.handle("requestVideoOffset", (event, videoIdx) => {
 
 ipcMain.handle("setVideoOffset", (event, videoIdx, offset) =>{
     videoInfo[videoIdx]['offset'] = offset
-    console.log(videoInfo[videoIdx])
 })
 
 
@@ -251,11 +244,15 @@ ipcMain.handle("saveVideoInfo", ()=>{
         header: ['filename', 'start_datetime', 'end_datetime', 'offset'],
         quoted_string: false
     });
-    fs.writeFileSync(videoInfoPath, csvString)
-    dialog.showMessageBox({
-        buttons: ["OK"],
-        message: 'video info saved at: ' + videoInfoPath
-    }, null)
+    try {
+        fs.writeFileSync(videoInfoPath, csvString)
+        dialog.showMessageBox({
+            buttons: ["OK"],
+            message: 'video info saved at: ' + videoInfoPath
+        }, null)
+    } catch (err) {
+        dialog.showErrorBox("Error in saving video info", err.message)
+    }
 })
 
 
@@ -332,12 +329,14 @@ ipcMain.handle('saveStages', (event, epochCells, stageFile)=>{
     "# saved at " + nowStr + "\n"
     "Stage\n"
     stageFilePath = path.join(stageDir, stageFile.name)
-    console.log('stage saved at: ' + stageFilePath)
-    fs.writeFileSync(stageFilePath, commentStr)
-    fs.appendFileSync(stageFilePath, csvString)
-
-    dialog.showMessageBox({
-        buttons: ["OK"],
-        message: 'stage saved at: ' + stageFilePath
-    }, null)
+    try {
+        fs.writeFileSync(stageFilePath, commentStr)
+        fs.appendFileSync(stageFilePath, csvString)
+        dialog.showMessageBox({
+            buttons: ["OK"],
+            message: 'stage saved at: ' + stageFilePath
+        }, null)
+   } catch (err) {
+        dialog.showErrorBox("Error in saving stage", err.message)
+    }
 })
