@@ -1,16 +1,5 @@
 const { contextBridge, ipcRenderer } = require('electron')
-const dayjs = require('dayjs')
 
-window.addEventListener('DOMContentLoaded', () => {
-  const replaceText = (selector, text) => {
-    const element = document.getElementById(selector)
-    if (element) element.innerText = text
-  }
-
-  for (const dependency of ['chrome', 'node', 'electron']) {
-    replaceText(`${dependency}-version`, process.versions[dependency])
-  }
-})
 
 contextBridge.exposeInMainWorld('api', {
   requestBasicInfo: async () => {
@@ -39,13 +28,5 @@ contextBridge.exposeInMainWorld('api', {
   },
   saveStages: async (epochCells, stageFile) => {
     return await ipcRenderer.invoke("saveStages", epochCells, stageFile)
-  }
-})
-
-
-contextBridge.exposeInMainWorld('electron', {
-  now: () => {
-    const now = dayjs().toDate()
-    return now;
   }
 })

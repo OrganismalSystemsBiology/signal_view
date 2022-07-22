@@ -1,17 +1,17 @@
 const { app, BrowserWindow, Menu, dialog, ipcMain } = require('electron')
 const path = require('path')
-const fs = require('fs');
+const fs = require('fs')
 const fflate = require('fflate')
-const { parse } = require('csv-parse/sync');
+const { parse } = require('csv-parse/sync')
 const { stringify } = require('csv-stringify/sync')
 const dayjs = require('dayjs')
 
-app.commandLine.appendSwitch('js-flags', '--max-old-space-size=32768');
+app.commandLine.appendSwitch('js-flags', '--max-old-space-size=32768')
 
 // Menu bar を非表示
-Menu.setApplicationMenu(null);
+Menu.setApplicationMenu(null)
 
-let win;
+let win
 let fasterDir
 let stageDir
 let deviceId
@@ -28,7 +28,7 @@ let epochVideoList
 
 
 function setBasicInfo() {
-    basicInfo = JSON.parse(fs.readFileSync(path.join(plotDir.voltPlot_dir, 'signal_view.json'), 'utf8'));
+    basicInfo = JSON.parse(fs.readFileSync(path.join(plotDir.voltPlot_dir, 'signal_view.json'), 'utf8'))
     
     // Basic info from the file
     mesLenSec = basicInfo['mes_len_sec']
@@ -75,6 +75,7 @@ function getPlotDir() {
 
 function createWindow() {
     win = new BrowserWindow({
+        title: "signal view v0.1.0",
         width: 1600,
         height: 500,
         backgroundColor: '#fff',
@@ -86,6 +87,8 @@ function createWindow() {
     // Obtain the path of the target voltage plot directory
     getPlotDir().then((res) => {
             plotDir = res
+    }).catch((err)=>{
+        app.quit()
     })
 
     win.setPosition(0, 0)
