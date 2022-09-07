@@ -75,7 +75,7 @@ function getPlotDir() {
 
 function createWindow() {
     win = new BrowserWindow({
-        title: "signal view v0.1.0",
+        title: "signal view v0.1.1",
         width: 1600,
         height: 500,
         backgroundColor: '#fff',

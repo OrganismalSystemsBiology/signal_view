@@ -24,7 +24,7 @@
   },
   "devDependencies": {
     "electron": "^19.0.9",
-    "electron-builder": "^23.1.0"
+    "electron-builder": "^23.3.3"
   },
   "build": {
     "appId": "LaboratoryForSyntheticBiologyAtRIKEN.SignalView",
@@ -38,7 +38,7 @@
       "package.json",
       "package-lock.json"
     ],
-    "nsis":{
+    "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true
     }
