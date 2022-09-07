@@ -1,6 +1,6 @@
 {
   "name": "signal_view",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "A tool for viewing and staging the EEG/EMG signal of Faster2",
   "main": "main.js",
   "scripts": {
