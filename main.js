@@ -87,7 +87,7 @@ function createWindow() {
     // Obtain the path of the target voltage plot directory
     getPlotDir().then((res) => {
             plotDir = res
-            win.setTitle("signal view v0.1.0 [" + plotDir.faster_dir +"] Device ID: " + plotDir.device_id)
+            win.setTitle("signal view v0.1.1 [" + plotDir.faster_dir +"] Device ID: " + plotDir.device_id)
     }).catch((err)=>{
         app.quit()
     })
