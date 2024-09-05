@@ -15,7 +15,7 @@ Or the development version is available at:
 https://github.com/OrganismalSystemsBiology/signal_view
 
 ## Installation
-You can just download the installer (signal_view.Setup.*.*.*.exe) from the releases page and run it.
+You can just download the installer (signal_view.Setup.*.*.*.exe) from the [releases page](https://github.com/OrganismalSystemsBiology/signal_view/releases) and run it.
 
 ## How to use
 There are three steps to use signal_view.
@@ -25,7 +25,7 @@ There are three steps to use signal_view.
 * Save the edited sleep stages
 
 ### Load the voltage data
-When you launch the **signal_view** you see the dialog window to select the voltage plot folder in the folder of `result/figure/voltage/` made by FASTER2. 
+When you launch the **signal_view** you see the dialog window to select the voltage plot folder. Here you select the folder of `result/figure/voltage/` made by FASTER2. 
 
 *Note*: Select a voltage plot folder corresponding to the channel you are going to inspect.
 ![Load voltage](README_resource/voltage_data_selection.jpg)
