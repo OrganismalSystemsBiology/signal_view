@@ -62,7 +62,7 @@ The 'spectrum' and 'video' buttons open the corresponding window if they are clo
 #### Spectrum window
 ![spectrums](README_resource/spectrums.png)
 
-These four plots represent PSDs of EEG/EMG signals of the selected epoch. The left top plot shows EEG's PSD spectrum. The right top plot shows the normalized PSD of EEG. The left bottom shows EMG's PSD spectru. The bottom right shows the normalized PSD of the EMG. Gray shadows represents +/- 1 SD (standard deviation) of all epochs.
+These four plots represent PSDs of EEG/EMG signals of the selected epoch. The left top plot shows EEG's PSD spectrum. The right top plot shows the normalized PSD of EEG. The left bottom shows EMG's PSD spectru. The bottom right shows the normalized PSD of the EMG. Gray shadows represent +/- 1 SD (standard deviation) of all epochs.
 
 ![thee_metrics_plots](README_resource/three_metrics_plots.png)
 
@@ -70,7 +70,7 @@ These two plots represent the position of the selected epoch in the 3D space spa
 
 ![freq_domain_powers_timeseries](README_resource/freq_domain_powers_timeseries.png)
 
-This double plot shows the time series of the percentage of delta- (blue line) and theta-power (orange line) domains. The X-axis is the epoch number centered at the selected epoch. The ratio of the theta/delta-power (thick orange line) is also presented with y-axis ticks on the right.
+This plot shows the time series of the percentage of delta- (blue line) and theta-power (orange line) domains. The X-axis is the epoch number centered at the selected epoch. The ratio of the theta/delta-power (thick orange line) is also presented with ticks on the righty-axis.
 
 #### Video window
 ![video_window](README_resource/video.png)
