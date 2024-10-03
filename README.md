@@ -70,7 +70,7 @@ These two plots represent the position of the selected epoch in the 3D space spa
 
 ![freq_domain_powers_timeseries](README_resource/freq_domain_powers_timeseries.png)
 
-This plot shows the time series of the percentage of delta- (blue line) and theta-power (orange line) domains. The X-axis is the epoch number centered at the selected epoch. The ratio of the theta/delta-power (thick orange line) is also presented with ticks on the righty-axis.
+This plot shows the time series of the percentage of delta- (blue line) and theta-power (orange line) domains. The X-axis is the epoch number centered at the selected epoch. The ratio of the theta/delta-power (thick orange line) is also presented with ticks on the right y-axis.
 
 #### Video window
 ![video_window](README_resource/video.png)
