@@ -44,11 +44,11 @@ Here, you can see the normalized voltage plots of EEG (blue lines) and EMG (red 
 ![corrected_epochs.png](README_resource/corrected_epochs.png)
 
 When you press a number key (1 - 4 and 0) on the keyboard, the selected epoch is highlighted as 'corrected.' You can specify the label with keys as follows:
-1. "1" → 'U'nknown
-1. "2" → 'R'EM sleep
-1. "3" → 'N'REM sleep
-1. "4" → 'W'ake
-1. "0" → Clear the label
+* "1" → 'U'nknown
+* "2" → 'R'EM sleep
+* "3" → 'N'REM sleep
+* "4" → 'W'ake
+* "0" → Clear the label
 
 ![top_bar](README_resource/top_bar.png)
 
