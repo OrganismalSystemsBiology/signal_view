@@ -4,14 +4,14 @@
 ## Main features
 - Visualize time series data of the normalized EEG/EMG voltages along with sleep stages (REM, NREM, and Wake).
 - Edit & Save & Load sleep stage annotations.
-- View FFT spectrum and video clip corresponding to the epoch under the inspection
+- View the FFT spectrum and video clip corresponding to the epoch under the inspection
 
 ## Where to download it
 
 You can download release versions at:
 https://github.com/OrganismalSystemsBiology/signal_view/releases
 
-Or the development version is available at:
+The development version is available at:
 https://github.com/OrganismalSystemsBiology/signal_view
 
 ## Installation
@@ -25,7 +25,7 @@ There are three steps to use signal_view.
 * Save the edited sleep stages
 
 ### Load the voltage data
-When you launch the **signal_view** you see the dialog window to select the voltage plot folder. Here you select the folder of `result/figure/voltage/` made by FASTER2. 
+When you launch the **signal_view**, you see the dialog window to select the voltage plot folder. Here, you choose the folder of `result/figure/voltage/` made by FASTER2. 
 
 *Note*: Select a voltage plot folder corresponding to the channel you are going to inspect.
 ![Load voltage](README_resource/voltage_data_selection.jpg)
@@ -43,7 +43,7 @@ Here, you can see the normalized voltage plots of EEG (blue lines) and EMG (red 
 
 ![corrected_epochs.png](README_resource/corrected_epochs.png)
 
-When you puch a number keys (1 - 4 and 0) of the keyboard, the selected epoch is highlighted as 'corrected.' You can specify the label with keys as follows:
+When you press a number key (1 - 4 and 0) on the keyboard, the selected epoch is highlighted as 'corrected.' You can specify the label with keys as follows:
 1. "1" → 'U'nknown
 1. "2" → 'R'EM sleep
 1. "3" → 'N'REM sleep
@@ -62,7 +62,7 @@ The 'spectrum' and 'video' buttons open the corresponding window if they are clo
 #### Spectrum window
 ![spectrums](README_resource/spectrums.png)
 
-These four plots represent PSDs of EEG/EMG signals of the selected epoch. The left top plot shows EEG's PSD spectrum. The right top plot shows the normalized PSD of EEG. The left bottom shows EMG's PSD spectru. The right bottom shows the normalized PSD of the EMG. Gray shadows represents +/- 1 SD (standard deviation) of all epochs.
+These four plots represent PSDs of EEG/EMG signals of the selected epoch. The left top plot shows EEG's PSD spectrum. The right top plot shows the normalized PSD of EEG. The left bottom shows EMG's PSD spectru. The bottom right shows the normalized PSD of the EMG. Gray shadows represents +/- 1 SD (standard deviation) of all epochs.
 
 ![thee_metrics_plots](README_resource/three_metrics_plots.png)
 
@@ -70,7 +70,7 @@ These two plots represent the position of the selected epoch in the 3D space spa
 
 ![freq_domain_powers_timeseries](README_resource/freq_domain_powers_timeseries.png)
 
-This double plot shows the timeseries of percentage of delta- (blue line) and theta-power (orange line) domains. x-axis is epoch number centered at the selected epoch. The ratio of the theta/delta-power (thick orange line) is also presented with y-axis ticks on the right.
+This double plot shows the time series of the percentage of delta- (blue line) and theta-power (orange line) domains. The X-axis is the epoch number centered at the selected epoch. The ratio of the theta/delta-power (thick orange line) is also presented with y-axis ticks on the right.
 
 #### Video window
 ![video_window](README_resource/video.png)
